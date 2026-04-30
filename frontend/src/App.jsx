@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import Navbar from './components/Navbar';
+import CommandPalette from './components/CommandPalette';
 
 // Lazy-loaded pages for code splitting
 const Login = lazy(() => import('./pages/Login'));
@@ -54,6 +55,7 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <Router>
+          <CommandPalette />
           <AppRoutes />
         </Router>
       </AuthProvider>

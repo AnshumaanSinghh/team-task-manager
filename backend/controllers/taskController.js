@@ -27,7 +27,8 @@ const createTask = async (req, res) => {
       assignedTo: assignedTo || null,
       deadline,
       status: status || 'To Do',
-      priority: priority || 'Medium'
+      priority: priority || 'Medium',
+      subtasks: req.body.subtasks || []
     });
 
     // Log activity
@@ -91,8 +92,9 @@ const updateTask = async (req, res) => {
 
     // Role-based logic
     if (req.user.role === 'Member') {
-      // Members can only update task status
+      // Members can only update task status and subtasks
       updateData = { status: req.body.status };
+      if (req.body.subtasks) updateData.subtasks = req.body.subtasks;
     } else {
       updateData = req.body;
     }

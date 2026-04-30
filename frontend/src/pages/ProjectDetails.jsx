@@ -3,9 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Plus, ArrowLeft, Clock, Trash2, Search, Filter, AlertTriangle, Flag } from 'lucide-react';
+import { Plus, ArrowLeft, Clock, Trash2, Search, Filter, AlertTriangle, Flag, CheckSquare, Sparkles } from 'lucide-react';
 import CreateTaskModal from '../components/CreateTaskModal';
+import TaskDetailsModal from '../components/TaskDetailsModal';
+import AIGeneratorModal from '../components/AIGeneratorModal';
 import toast from 'react-hot-toast';
+import confetti from 'canvas-confetti';
 
 const priorityConfig = {
   High: { class: 'priority-high', icon: '🔴' },
@@ -51,6 +54,8 @@ export default function ProjectDetails() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -91,6 +96,16 @@ export default function ProjectDetails() {
     setTasks(prev => prev.map(task =>
       task._id === draggableId ? { ...task, status: newStatus } : task
     ));
+
+    // Gamification: Confetti on Complete
+    if (newStatus === 'Completed') {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#10B981', '#34D399', '#6366F1']
+      });
+    }
 
     try {
       await api.put(`/tasks/${draggableId}`, { status: newStatus });
@@ -145,6 +160,15 @@ export default function ProjectDetails() {
           <p className="text-gray-500 text-sm truncate">{project?.description}</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
+          {/* AI Magic Generator */}
+          {user?.role === 'Admin' && (
+            <button
+              onClick={() => setIsGenerating(true)}
+              className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-2 rounded-xl font-medium flex items-center gap-1.5 transition-all text-sm disabled:opacity-50"
+            >
+              <Sparkles size={16} /> <span className="hidden sm:inline">Magic Generate</span>
+            </button>
+          )}
           {/* Member avatars */}
           <div className="hidden sm:flex -space-x-2 mr-2">
             {project?.members?.slice(0, 4).map((m, i) => (
@@ -248,10 +272,11 @@ export default function ProjectDetails() {
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
                                   {...provided.dragHandleProps}
-                                  className={`bg-white rounded-xl p-4 border shadow-sm transition-all duration-200 group ${
+                                  onClick={() => setSelectedTask(task)}
+                                  className={`bg-white rounded-xl p-4 border shadow-sm transition-all duration-200 group cursor-pointer ${
                                     snapshot.isDragging
-                                      ? 'shadow-xl ring-2 ring-indigo-400 rotate-1 scale-[1.03] border-indigo-300'
-                                      : 'border-gray-100 hover:shadow-md hover:border-gray-200'
+                                      ? 'shadow-xl ring-2 ring-indigo-400 rotate-1 scale-[1.03] border-indigo-300 z-50'
+                                      : 'border-gray-100 hover:shadow-md hover:border-indigo-100'
                                   }`}
                                 >
                                   {/* Priority + Delete */}
@@ -275,16 +300,25 @@ export default function ProjectDetails() {
 
                                   {/* Footer */}
                                   <div className="flex items-center justify-between pt-3 border-t border-gray-50">
-                                    {task.assignedTo ? (
-                                      <div className="flex items-center gap-1.5">
-                                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-white flex items-center justify-center font-bold text-[10px]">
-                                          {task.assignedTo.name?.charAt(0)?.toUpperCase()}
+                                    <div className="flex items-center gap-2">
+                                      {task.assignedTo ? (
+                                        <div className="flex items-center gap-1.5" title={task.assignedTo.name}>
+                                          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-white flex items-center justify-center font-bold text-[10px]">
+                                            {task.assignedTo.name?.charAt(0)?.toUpperCase()}
+                                          </div>
                                         </div>
-                                        <span className="text-xs text-gray-500 truncate max-w-[70px]">{task.assignedTo.name}</span>
-                                      </div>
-                                    ) : (
-                                      <span className="text-xs text-gray-300 italic">Unassigned</span>
-                                    )}
+                                      ) : (
+                                        <div className="w-6 h-6 rounded-full bg-gray-100 border border-dashed border-gray-300" title="Unassigned"></div>
+                                      )}
+                                      
+                                      {/* Subtask Indicator */}
+                                      {task.subtasks && task.subtasks.length > 0 && (
+                                        <div className="flex items-center gap-1 text-[10px] font-medium text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded">
+                                          <CheckSquare size={10} />
+                                          {task.subtasks.filter(s => s.isCompleted).length}/{task.subtasks.length}
+                                        </div>
+                                      )}
+                                    </div>
                                     <div className={`flex items-center gap-1 text-[11px] ${dlStatus.color}`}>
                                       {dlStatus.label === 'Overdue' && <AlertTriangle size={12} />}
                                       <Clock size={11} />
@@ -319,6 +353,29 @@ export default function ProjectDetails() {
           onClose={() => setIsModalOpen(false)}
           onSuccess={() => {
             setIsModalOpen(false);
+            fetchData();
+          }}
+        />
+      )}
+
+      {selectedTask && (
+        <TaskDetailsModal
+          task={selectedTask}
+          userRole={user?.role}
+          onClose={() => setSelectedTask(null)}
+          onUpdate={(updatedTask) => {
+            setTasks(prev => prev.map(t => t._id === updatedTask._id ? updatedTask : t));
+            setSelectedTask(updatedTask);
+          }}
+        />
+      )}
+
+      {isGenerating && (
+        <AIGeneratorModal
+          projectId={id}
+          onClose={() => setIsGenerating(false)}
+          onSuccess={() => {
+            setIsGenerating(false);
             fetchData();
           }}
         />
