@@ -244,48 +244,54 @@ export default function ProjectDetails() {
         </div>
         
         {/* Feature Buttons — grid on mobile, flex wrap on desktop */}
-        <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }} className="sm:flex sm:flex-wrap sm:gap-2">
           <button
             onClick={handleShare}
             disabled={shareLoading}
-            className="bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 px-3 py-2.5 rounded-xl font-medium flex items-center justify-center gap-1.5 transition-all text-xs sm:text-sm"
+            className="bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 rounded-xl font-medium transition-all"
+            style={{ padding: '10px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
             title="Share Public Link"
           >
-            <Share2 size={15} /> Share Link
+            <Share2 size={14} /> Share Link
           </button>
           <button 
             onClick={() => setIsPlaybackOpen(true)}
-            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-2.5 rounded-xl font-medium transition-colors flex items-center justify-center gap-1.5 text-xs sm:text-sm border border-indigo-100"
+            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-100 rounded-xl font-medium transition-colors"
+            style={{ padding: '10px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
           >
-            <Play size={15} /> Playback
+            <Play size={14} /> Playback
           </button>
           <button 
             onClick={() => setIsActivityOpen(!isActivityOpen)}
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2.5 rounded-xl font-medium transition-colors flex items-center justify-center gap-1.5 text-xs sm:text-sm"
+            className="bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors"
+            style={{ padding: '10px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
           >
-            <Activity size={15} /> Activity
+            <Activity size={14} /> Activity
           </button>
           <button
             onClick={handleExportCSV}
-            className="bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 px-3 py-2.5 rounded-xl font-medium flex items-center justify-center gap-1.5 transition-all text-xs sm:text-sm"
+            className="bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 rounded-xl font-medium transition-all"
+            style={{ padding: '10px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
             title="Export as CSV"
           >
-            <Download size={15} /> Export CSV
+            <Download size={14} /> Export CSV
           </button>
           {user?.role === 'Admin' && (
             <button
               onClick={() => setIsGenerating(true)}
-              className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-2.5 rounded-xl font-medium flex items-center justify-center gap-1.5 transition-all text-xs sm:text-sm border border-indigo-100"
+              className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-100 rounded-xl font-medium transition-all"
+              style={{ padding: '10px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
               title="Batch AI Generate"
             >
-              <Sparkles size={15} /> AI Batch
+              <Sparkles size={14} /> AI Batch
             </button>
           )}
           <button
             onClick={() => setIsModalOpen(true)}
-            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-3 py-2.5 rounded-xl font-medium flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-indigo-500/20 text-xs sm:text-sm col-span-2 sm:col-span-1"
+            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-medium transition-all shadow-lg shadow-indigo-500/20"
+            style={{ padding: '10px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', gridColumn: user?.role === 'Admin' ? 'span 2' : 'span 1' }}
           >
-            <Plus size={16} /> Add Task
+            <Plus size={14} /> Add Task
           </button>
         </div>
       </div>
