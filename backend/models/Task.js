@@ -39,6 +39,12 @@ const taskSchema = new mongoose.Schema({
   subtasks: [{
     title: { type: String, required: true },
     isCompleted: { type: Boolean, default: false }
+  }],
+  decisionLog: [{
+    commentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Comment' },
+    text: String,
+    markedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    markedAt: { type: Date, default: Date.now }
   }]
 }, { timestamps: true });
 

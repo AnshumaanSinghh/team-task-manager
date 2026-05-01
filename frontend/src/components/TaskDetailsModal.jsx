@@ -1,13 +1,65 @@
 import React, { useState } from 'react';
 import api from '../api';
 import toast from 'react-hot-toast';
-import { X, CheckCircle2, Circle, Clock, Tag, AlignLeft, User, ListTodo, Plus } from 'lucide-react';
+import { X, CheckCircle2, Circle, Clock, Tag, AlignLeft, User, ListTodo, Plus, MessageSquare, Send, Pin, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
 
 export default function TaskDetailsModal({ task, onClose, onUpdate, userRole }) {
   const [subtasks, setSubtasks] = useState(task.subtasks || []);
   const [newSubtask, setNewSubtask] = useState('');
   const [loading, setLoading] = useState(false);
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState('');
+  const [suggestion, setSuggestion] = useState(null);
+  const [loadingSuggestion, setLoadingSuggestion] = useState(false);
+
+  React.useEffect(() => {
+    const fetchComments = async () => {
+      try {
+        const res = await api.get(`/tasks/${task._id}/comments`);
+        setComments(res.data);
+      } catch (error) {
+        console.error('Failed to load comments:', error);
+      }
+    };
+    fetchComments();
+  }, [task._id]);
+
+  const handleAddComment = async (e) => {
+    e.preventDefault();
+    if (!newComment.trim()) return;
+    try {
+      const res = await api.post(`/tasks/${task._id}/comments`, { text: newComment });
+      setComments([res.data, ...comments]);
+      setNewComment('');
+      toast.success('Comment added');
+    } catch (error) {
+      toast.error('Failed to add comment');
+    }
+  };
+
+  const handleToggleDecision = async (commentId) => {
+    try {
+      const res = await api.put(`/tasks/${task._id}/comments/${commentId}/decision`);
+      onUpdate(res.data);
+      toast.success('Decision updated');
+    } catch (error) {
+      toast.error('Failed to update decision');
+    }
+  };
+
+  const handleSuggestNextStep = async () => {
+    setLoadingSuggestion(true);
+    try {
+      const res = await api.get(`/tasks/${task._id}/suggest-next-step`);
+      setSuggestion(res.data.suggestion);
+    } catch (error) {
+      toast.error('Failed to get suggestion');
+    } finally {
+      setLoadingSuggestion(false);
+    }
+  };
 
   const completedCount = subtasks.filter(st => st.isCompleted).length;
   const progress = subtasks.length === 0 ? 0 : Math.round((completedCount / subtasks.length) * 100);
@@ -96,6 +148,28 @@ export default function TaskDetailsModal({ task, onClose, onUpdate, userRole }) 
                 </p>
               </div>
 
+              {/* Decisions Section (Pinned Comments) */}
+              {task.decisionLog && task.decisionLog.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-amber-800 mb-3">
+                    <Pin size={16} className="text-amber-600 fill-amber-600" /> Key Decisions
+                  </h3>
+                  <div className="space-y-3">
+                    {task.decisionLog.map((decision, idx) => (
+                      <div key={idx} className="bg-white rounded-lg p-3 text-sm text-gray-800 shadow-sm border border-amber-100 flex gap-2 items-start">
+                        <div className="flex-1 prose prose-sm max-w-none prose-a:text-indigo-600">
+                          <ReactMarkdown>{decision.text}</ReactMarkdown>
+                        </div>
+                        <div className="text-[10px] text-gray-400 mt-1 flex-shrink-0 text-right">
+                          <p className="font-semibold">{decision.markedBy?.name}</p>
+                          <p>{new Date(decision.markedAt).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Subtasks Section */}
               <div>
                 <h3 className="flex items-center justify-between text-sm font-semibold text-gray-800 mb-3">
@@ -155,10 +229,94 @@ export default function TaskDetailsModal({ task, onClose, onUpdate, userRole }) 
                   </button>
                 </form>
               </div>
+
+              {/* Comments Section */}
+              <div className="pt-6 mt-6 border-t border-gray-100">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-4">
+                  <MessageSquare size={16} className="text-gray-400" /> Comments
+                </h3>
+                
+                <form onSubmit={handleAddComment} className="mb-6 relative">
+                  <textarea
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    placeholder="Write a comment... (Markdown supported)"
+                    className="w-full pl-4 pr-12 py-3 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none bg-gray-50/50"
+                    rows="2"
+                  ></textarea>
+                  <button 
+                    type="submit" 
+                    disabled={!newComment.trim()} 
+                    className="absolute bottom-3 right-3 p-1.5 bg-indigo-600 text-white rounded-lg disabled:opacity-50 hover:bg-indigo-700 transition-colors"
+                  >
+                    <Send size={14} />
+                  </button>
+                </form>
+
+                <div className="space-y-4">
+                  {comments.map((comment) => {
+                    const isDecision = task.decisionLog?.some(d => d.commentId === comment._id);
+                    return (
+                      <div key={comment._id} className={`flex gap-3 relative group ${isDecision ? 'opacity-50' : ''}`}>
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-white flex items-center justify-center font-bold text-xs shadow-sm flex-shrink-0 mt-1">
+                          {comment.userId?.name?.charAt(0)?.toUpperCase()}
+                        </div>
+                        <div className={`flex-1 rounded-xl p-3 border ${isDecision ? 'bg-amber-50/50 border-amber-100' : 'bg-gray-50 border-gray-100'}`}>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="font-semibold text-sm text-gray-900">{comment.userId?.name}</span>
+                            <div className="flex items-center gap-2">
+                              {userRole === 'Admin' && !isDecision && (
+                                <button 
+                                  onClick={() => handleToggleDecision(comment._id)}
+                                  className="text-[10px] bg-white border border-gray-200 text-gray-500 hover:text-amber-600 hover:border-amber-200 px-2 py-0.5 rounded transition-colors flex items-center gap-1 opacity-0 group-hover:opacity-100"
+                                >
+                                  <Pin size={10} /> Mark Decision
+                                </button>
+                              )}
+                              {isDecision && (
+                                <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded flex items-center gap-1">
+                                  <Pin size={10} className="fill-amber-700" /> Decision
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-400">{new Date(comment.createdAt).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                          <div className="text-sm text-gray-700 prose prose-sm max-w-none prose-p:leading-snug prose-a:text-indigo-600">
+                            <ReactMarkdown>{comment.text}</ReactMarkdown>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {comments.length === 0 && (
+                    <p className="text-sm text-gray-400 text-center py-4">No comments yet. Start the discussion!</p>
+                  )}
+                </div>
+              </div>
+
             </div>
 
             {/* Sidebar (Right) */}
             <div className="w-full md:w-56 space-y-5">
+              {/* AI Next Best Action */}
+              <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 shadow-sm relative overflow-hidden group">
+                <div className="absolute -right-4 -top-4 w-16 h-16 bg-indigo-500/10 rounded-full blur-xl group-hover:bg-indigo-500/20 transition-all"></div>
+                <h4 className="text-xs font-semibold text-indigo-800 uppercase tracking-wider mb-2 flex items-center gap-1">
+                  <Sparkles size={14} className="text-indigo-500" /> AI Assistant
+                </h4>
+                {suggestion ? (
+                  <p className="text-sm text-indigo-900 leading-snug font-medium">{suggestion}</p>
+                ) : (
+                  <button 
+                    onClick={handleSuggestNextStep}
+                    disabled={loadingSuggestion}
+                    className="w-full bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-colors py-1.5 rounded-lg text-sm font-semibold disabled:opacity-50"
+                  >
+                    {loadingSuggestion ? 'Analyzing...' : 'Suggest Next Step'}
+                  </button>
+                )}
+              </div>
+
               <div>
                 <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Assignee</h4>
                 {task.assignedTo ? (

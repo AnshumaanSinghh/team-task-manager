@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://backend-production-bc0ea.up.railway.app/api/$1"
+      "destination": "https://backend-mu-two-25.vercel.app/api/$1"
     },
     {
       "source": "/(.*)",

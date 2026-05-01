@@ -3,10 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Plus, ArrowLeft, Clock, Trash2, Search, Filter, AlertTriangle, Flag, CheckSquare, Sparkles } from 'lucide-react';
+import { Plus, ArrowLeft, Clock, Trash2, Search, Filter, AlertTriangle, Flag, CheckSquare, Sparkles, Download, Share2, Activity, Zap, Play, X } from 'lucide-react';
 import CreateTaskModal from '../components/CreateTaskModal';
 import TaskDetailsModal from '../components/TaskDetailsModal';
 import AIGeneratorModal from '../components/AIGeneratorModal';
+import ProjectPulse from '../components/ProjectPulse';
+import GhostPlayback from '../components/GhostPlayback';
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
 
@@ -56,6 +58,14 @@ export default function ProjectDetails() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  
+  // New features state
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isActivityOpen, setIsActivityOpen] = useState(false);
+  const [isPlaybackOpen, setIsPlaybackOpen] = useState(false);
+  const [activities, setActivities] = useState([]);
+  const [shareLoading, setShareLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -76,6 +86,50 @@ export default function ProjectDetails() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const fetchActivities = async () => {
+    try {
+      const res = await api.get(`/projects/${id}/activity`);
+      setActivities(res.data);
+    } catch (error) {
+      console.error('Failed to load activities', error);
+    }
+  };
+
+  useEffect(() => {
+    if (isActivityOpen) fetchActivities();
+  }, [isActivityOpen]);
+
+  const handleAiSubmit = async (e) => {
+    e.preventDefault();
+    if (!aiPrompt.trim()) return;
+    setIsAiLoading(true);
+    try {
+      await api.post('/tasks/ai-create', { prompt: aiPrompt, projectId: id });
+      toast.success('Task created magically! ✨');
+      setAiPrompt('');
+      fetchData();
+      if (isActivityOpen) fetchActivities();
+    } catch (error) {
+      toast.error('Failed to create task via AI');
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  const handleShare = async () => {
+    setShareLoading(true);
+    try {
+      const res = await api.post(`/projects/${id}/share`);
+      const shareUrl = `${window.location.origin}/public/${res.data.shareId}`;
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success('Public link copied to clipboard!');
+    } catch (error) {
+      toast.error('Failed to generate share link');
+    } finally {
+      setShareLoading(false);
+    }
+  };
 
   const filteredTasks = useMemo(() => {
     return tasks.filter(t => {
@@ -127,6 +181,33 @@ export default function ProjectDetails() {
     }
   }, []);
 
+  const handleExportCSV = () => {
+    if (filteredTasks.length === 0) {
+      toast.error('No tasks to export');
+      return;
+    }
+
+    const headers = ['Title', 'Description', 'Status', 'Priority', 'Assigned To', 'Deadline'];
+    const csvContent = [
+      headers.join(','),
+      ...filteredTasks.map(t => [
+        `"${t.title.replace(/"/g, '""')}"`,
+        `"${t.description.replace(/"/g, '""')}"`,
+        t.status,
+        t.priority || 'Medium',
+        `"${t.assignedTo ? t.assignedTo.name : 'Unassigned'}"`,
+        new Date(t.deadline).toLocaleDateString()
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${project?.name.replace(/\s+/g, '_')}_tasks.csv`;
+    link.click();
+    toast.success('Tasks exported successfully');
+  };
+
   if (loading) {
     return (
       <div className="h-full flex flex-col max-w-7xl mx-auto animate-fadeIn">
@@ -155,40 +236,89 @@ export default function ProjectDetails() {
         <button onClick={() => navigate('/projects')} className="p-2.5 bg-white rounded-xl shadow-sm hover:bg-gray-50 transition-colors border border-gray-100">
           <ArrowLeft size={20} className="text-gray-600" />
         </button>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold text-gray-900 truncate">{project?.name}</h1>
-          <p className="text-gray-500 text-sm truncate">{project?.description}</p>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {/* AI Magic Generator */}
-          {user?.role === 'Admin' && (
-            <button
-              onClick={() => setIsGenerating(true)}
-              className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-2 rounded-xl font-medium flex items-center gap-1.5 transition-all text-sm disabled:opacity-50"
-            >
-              <Sparkles size={16} /> <span className="hidden sm:inline">Magic Generate</span>
-            </button>
-          )}
-          {/* Member avatars */}
-          <div className="hidden sm:flex -space-x-2 mr-2">
-            {project?.members?.slice(0, 4).map((m, i) => (
-              <div key={i} className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-white text-xs font-bold flex items-center justify-center border-2 border-white shadow-sm" title={m.name}>
-                {m.name?.charAt(0)?.toUpperCase()}
-              </div>
-            ))}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl font-bold text-gray-900 truncate">{project?.name}</h1>
+            <p className="text-gray-500 text-sm truncate">{project?.description}</p>
           </div>
-          {user?.role === 'Admin' && (
+          <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
             <button
-              onClick={() => setIsModalOpen(true)}
-              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-all shadow-lg shadow-indigo-500/20 text-sm"
+              onClick={handleShare}
+              disabled={shareLoading}
+              className="bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 px-3 py-2 rounded-xl font-medium flex items-center gap-1.5 transition-all text-sm"
+              title="Share Public Link"
             >
-              <Plus size={18} /> Add Task
+              <Share2 size={16} /> <span className="hidden sm:inline">Share</span>
             </button>
-          )}
+              <button 
+                onClick={() => setIsPlaybackOpen(true)}
+                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 text-sm sm:text-base border border-indigo-100"
+              >
+                <Play size={18} /> <span className="hidden sm:inline">Ghost Playback</span>
+              </button>
+              
+              <button 
+                onClick={() => setIsActivityOpen(!isActivityOpen)}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
+              >
+              <Activity size={16} /> <span className="hidden sm:inline">Activity</span>
+            </button>
+            {user?.role === 'Admin' && (
+              <button
+                onClick={() => setIsGenerating(true)}
+                className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-2 rounded-xl font-medium flex items-center gap-1.5 transition-all text-sm"
+                title="Batch AI Generate"
+              >
+                <Sparkles size={16} />
+              </button>
+            )}
+            <div className="hidden sm:flex -space-x-2 mr-1 ml-1">
+              {project?.members?.slice(0, 4).map((m, i) => (
+                <div key={i} className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-white text-xs font-bold flex items-center justify-center border-2 border-white shadow-sm" title={m.name}>
+                  {m.name?.charAt(0)?.toUpperCase()}
+                </div>
+              ))}
+            </div>
+            {user?.role === 'Admin' && (
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-all shadow-lg shadow-indigo-500/20 text-sm"
+              >
+                <Plus size={18} /> <span className="hidden sm:inline">Add Task</span>
+              </button>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Search & Filter Bar */}
+        {/* AI Quick Task Creator Hook */}
+        <form onSubmit={handleAiSubmit} className="mb-6 relative max-w-2xl group">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <Zap size={18} className={`${aiPrompt ? 'text-indigo-500' : 'text-gray-400'} transition-colors`} />
+          </div>
+          <input
+            type="text"
+            value={aiPrompt}
+            onChange={(e) => setAiPrompt(e.target.value)}
+            placeholder="Type 'Build login page by Friday, assign to Raj' and press enter..."
+            className="w-full pl-11 pr-24 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm placeholder-gray-400 group-hover:border-indigo-200"
+            disabled={isAiLoading}
+          />
+          <div className="absolute inset-y-0 right-2 flex items-center">
+            <button 
+              type="submit" 
+              disabled={!aiPrompt.trim() || isAiLoading}
+              className="bg-indigo-600 text-white px-3 py-1.5 rounded-xl text-xs font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center gap-1"
+            >
+              {isAiLoading ? 'Creating...' : 'Create Magic'}
+            </button>
+          </div>
+        </form>
+
+        {/* Live Project Pulse Widget */}
+        <ProjectPulse projectId={id} />
+
+        <div className="flex flex-col lg:flex-row gap-6 h-full min-h-0">
+          <div className="flex-1 flex flex-col min-h-0">
+            {/* Search & Filter Bar */}
       <div className="flex flex-wrap items-center gap-3 mb-5">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -226,7 +356,15 @@ export default function ProjectDetails() {
           </div>
         )}
 
-        <div className="ml-auto text-xs text-gray-400">
+        <button
+          onClick={handleExportCSV}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 text-sm font-medium transition-all ml-auto sm:ml-2"
+          title="Export as CSV"
+        >
+          <Download size={16} /> <span className="hidden sm:inline">Export</span>
+        </button>
+
+        <div className="ml-2 text-xs text-gray-400 self-center">
           {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''}
         </div>
       </div>
@@ -342,8 +480,45 @@ export default function ProjectDetails() {
                 </div>
               );
             })}
+            </div>
+          </DragDropContext>
+        </div>
+      </div>
+
+      {/* Activity Sidebar */}
+      {isActivityOpen && (
+        <div className="w-full lg:w-80 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col min-h-0 lg:h-[calc(100vh-200px)]">
+          <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+            <h3 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
+              <Activity size={16} className="text-indigo-500" /> Activity Log
+            </h3>
+            <button onClick={() => setIsActivityOpen(false)} className="text-gray-400 hover:text-gray-600">
+              <X size={16} />
+            </button>
           </div>
-        </DragDropContext>
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {activities.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-4">No activity yet.</p>
+            ) : (
+              activities.map(act => (
+                <div key={act._id} className="flex gap-3 text-sm">
+                  <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
+                    {act.userId?.name?.charAt(0)?.toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-gray-800 leading-snug">
+                      <span className="font-semibold">{act.userId?.name}</span> {act.details.replace(act.userId?.name, '')}
+                    </p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">
+                      {new Date(act.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
       </div>
 
       {isModalOpen && (
@@ -379,6 +554,9 @@ export default function ProjectDetails() {
             fetchData();
           }}
         />
+      )}
+      {isPlaybackOpen && (
+        <GhostPlayback projectId={id} onClose={() => setIsPlaybackOpen(false)} />
       )}
     </div>
   );

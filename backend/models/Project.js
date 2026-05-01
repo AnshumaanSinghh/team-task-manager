@@ -17,7 +17,12 @@ const projectSchema = new mongoose.Schema({
   members: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
-  }]
+  }],
+  shareId: {
+    type: String,
+    unique: true,
+    sparse: true
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Project', projectSchema);

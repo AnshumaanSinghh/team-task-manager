@@ -1,22 +1,36 @@
 const mongoose = require('mongoose');
-const { MongoMemoryServer } = require('mongodb-memory-server');
+
+let cached = global.mongoose;
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
 
 const connectDB = async () => {
-  try {
-    let uri = process.env.MONGO_URI;
-    
-    // If the URI is the placeholder or we're in development, use the in-memory server
-    if (!uri || uri.includes('cluster0.mongodb.net') || uri === '') {
-      console.log('Starting in-memory MongoDB Server for zero-config local development...');
-      const mongoServer = await MongoMemoryServer.create();
-      uri = mongoServer.getUri();
-    }
+  // If already connected, reuse connection (important for serverless)
+  if (cached.conn) {
+    return cached.conn;
+  }
 
-    const conn = await mongoose.connect(uri);
-    console.log(`MongoDB Connected: ${conn.connection.host} (Using Memory Server: ${uri.includes('127.0.0.1') || uri.includes('localhost')})`);
+  const uri = process.env.MONGO_URI;
+
+  if (!uri || uri.includes('user:pass@')) {
+    console.error('ERROR: No valid MONGO_URI environment variable set.');
+    throw new Error('No valid MONGO_URI environment variable set.');
+  }
+
+  try {
+    if (!cached.promise) {
+      cached.promise = mongoose.connect(uri, {
+        bufferCommands: false,
+      });
+    }
+    cached.conn = await cached.promise;
+    console.log(`MongoDB Connected: ${cached.conn.connection.host}`);
+    return cached.conn;
   } catch (error) {
-    console.error(`Error: ${error.message}`);
-    process.exit(1);
+    cached.promise = null;
+    console.error(`MongoDB Connection Error: ${error.message}`);
+    throw error;
   }
 };
 

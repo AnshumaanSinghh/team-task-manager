@@ -1,0 +1,59 @@
+TASKFLOW: PROJECT SUMMARY & DIFFERENTIATORS
+
+1. WHAT WE HAVE BUILT (Core Features)
+--------------------------------------------------
+- Full-Stack Architecture: React (Vite) Frontend + Node.js/Express Backend.
+- Database: MongoDB Atlas (M0 Cluster) with intelligent serverless connection pooling.
+- Authentication: JWT-based secure login and registration.
+- Role-Based Access Control (RBAC): Admin vs. Member permissions (e.g., only Admins can delete tasks or invite members).
+- Interactive Kanban Board: Drag-and-drop task management with optimistic UI updates.
+- Dashboard Analytics: Real-time charts showing task completion rates, priorities, and upcoming deadlines.
+- Deployment: Both frontend and backend deployed on Vercel Serverless Edge network.
+
+2. WHAT MAKES IT UNIQUE & BETTER THAN OTHERS (The "Wow Factor")
+--------------------------------------------------
+Most portfolio task managers are simple CRUD (Create, Read, Update, Delete) apps. TaskFlow goes above and beyond with these premium differentiators:
+
+A. AI Magic Task Creator (NLP to JSON)
+Instead of manually filling out forms, users can type natural language: 
+"Build the login page by Friday, priority high, assign to Raj". 
+The backend routes this through a multi-model AI strategy (Groq -> Gemini -> OpenRouter) to automatically extract the title, calculate the deadline, find the correct team member, and generate the task. 
+
+B. AI "Next Best Action" (Rule-Based Intelligence)
+Every task sidebar has a "Suggest Next Step" button. The system analyzes the task state, the user's workload, and deadline status to provide intelligent recommendations like "Raj is handling 7 pending tasks. Consider reassigning." No heavy AI required — pure logic running under 200ms.
+
+C. Live Project Pulse (Heartbeat Monitor)
+Instead of just showing static tasks, TaskFlow includes a real-time health monitor for the project. It calculates a dynamic score (0-100) based on task completion, overdue tasks, and team activity. It features an animated ECG-style UI that changes color/speed based on health, automatically detects team burnout (e.g., if one user has too many overdue tasks), and generates 1-line smart insights. A dynamic Risk Badge (Healthy / At Risk / Critical) updates every 15 seconds.
+
+D. Decision Mode (Comments Upgrade)
+Any comment can be marked as a "Key Decision" by an Admin. Pinned decisions float to the top of the task details, making it easy to track what was decided without scrolling through an entire comment thread. Inspired by enterprise tools like Confluence.
+
+E. Ghost Playback (Smart Highlights)
+A cinematic, animated timeline replay that visually plays back every action taken in the project. The system automatically identifies and highlights: Peak Activity Days, the Largest Completed Task, and Missed Deadlines. Play, pause, and scrub through the entire project history.
+
+F. Smart Markdown Comments
+Inside task details, team members can collaborate using a chat interface that supports full Markdown. This mimics professional tools like Jira and GitHub.
+
+G. Public Share Links (Read-Only)
+Just like Notion or Google Docs, Admins can generate a secure, unique URL to share their project board with anyone (clients, recruiters, professors) without requiring them to log in.
+
+H. 1-Click CSV Export
+A purely client-side feature that allows managers to export their filtered task board directly to a formatted CSV file instantly.
+
+I. Serverless-First Deployment Architecture
+Unlike traditional apps that crash on free hosting tiers due to memory limits, TaskFlow is deployed 100% on Vercel Serverless Edge networks. The database connection logic was custom-written to cache connections across serverless invocations, ensuring zero-downtime and massive scalability.
+
+3. TECHNOLOGIES USED
+--------------------------------------------------
+Frontend: React 19, Vite 8, Tailwind CSS v4, Framer Motion, Recharts, react-markdown, @hello-pangea/dnd, Lucide React, react-hot-toast
+Backend: Node.js, Express 5, Mongoose, JWT, bcryptjs
+AI: Groq (Llama 3), Google Gemini Flash, OpenRouter (multi-model fallback)
+Database: MongoDB Atlas
+Deployment: Vercel Serverless Edge (both frontend & backend)
+Security: bcrypt hashing, JWT tokens, encrypted API keys via Vercel Vault
+
+4. LIVE URLS
+--------------------------------------------------
+Frontend: https://frontend-lake-tau-31.vercel.app
+Backend API: https://backend-mu-two-25.vercel.app
+GitHub Repo: https://github.com/AnshumaanSinghh/team-task-manager

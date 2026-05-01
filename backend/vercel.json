@@ -11,5 +11,10 @@
       "src": "/(.*)",
       "dest": "server.js"
     }
-  ]
+  ],
+  "env": {
+    "MONGO_URI": "mongodb+srv://taskflow:TaskFlow2026Prod@cluster0.oustxw5.mongodb.net/teamtaskmanager",
+    "JWT_SECRET": "supersecretjwtkey123",
+    "NODE_ENV": "production"
+  }
 }

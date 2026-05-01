@@ -11,6 +11,7 @@ const Signup = lazy(() => import('./pages/Signup'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Projects = lazy(() => import('./pages/Projects'));
 const ProjectDetails = lazy(() => import('./pages/ProjectDetails'));
+const PublicProject = lazy(() => import('./pages/PublicProject'));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center h-[60vh]">
@@ -40,6 +41,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
         <Route path="/signup" element={!user ? <Signup /> : <Navigate to="/dashboard" />} />
+        <Route path="/public/:shareId" element={<PublicProject />} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
         <Route path="/projects/:id" element={<ProtectedRoute><ProjectDetails /></ProtectedRoute>} />
