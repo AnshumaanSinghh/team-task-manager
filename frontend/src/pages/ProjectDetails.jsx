@@ -243,56 +243,49 @@ export default function ProjectDetails() {
           </div>
         </div>
         
-        {/* Feature Buttons — always visible with labels */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Feature Buttons — grid on mobile, flex wrap on desktop */}
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
           <button
             onClick={handleShare}
             disabled={shareLoading}
-            className="bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 px-3 py-2 rounded-xl font-medium flex items-center gap-1.5 transition-all text-sm"
+            className="bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 px-3 py-2.5 rounded-xl font-medium flex items-center justify-center gap-1.5 transition-all text-xs sm:text-sm"
             title="Share Public Link"
           >
-            <Share2 size={16} /> Share
+            <Share2 size={15} /> Share Link
           </button>
           <button 
             onClick={() => setIsPlaybackOpen(true)}
-            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-2 rounded-xl font-medium transition-colors flex items-center gap-1.5 text-sm border border-indigo-100"
+            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-2.5 rounded-xl font-medium transition-colors flex items-center justify-center gap-1.5 text-xs sm:text-sm border border-indigo-100"
           >
-            <Play size={16} /> Ghost Playback
+            <Play size={15} /> Playback
           </button>
           <button 
             onClick={() => setIsActivityOpen(!isActivityOpen)}
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-xl font-medium transition-colors flex items-center gap-1.5 text-sm"
+            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2.5 rounded-xl font-medium transition-colors flex items-center justify-center gap-1.5 text-xs sm:text-sm"
           >
-            <Activity size={16} /> Activity
+            <Activity size={15} /> Activity
           </button>
           <button
             onClick={handleExportCSV}
-            className="bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 px-3 py-2 rounded-xl font-medium flex items-center gap-1.5 transition-all text-sm"
+            className="bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 px-3 py-2.5 rounded-xl font-medium flex items-center justify-center gap-1.5 transition-all text-xs sm:text-sm"
             title="Export as CSV"
           >
-            <Download size={16} /> Export CSV
+            <Download size={15} /> Export CSV
           </button>
           {user?.role === 'Admin' && (
             <button
               onClick={() => setIsGenerating(true)}
-              className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-2 rounded-xl font-medium flex items-center gap-1.5 transition-all text-sm border border-indigo-100"
+              className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-2.5 rounded-xl font-medium flex items-center justify-center gap-1.5 transition-all text-xs sm:text-sm border border-indigo-100"
               title="Batch AI Generate"
             >
-              <Sparkles size={16} /> AI Batch
+              <Sparkles size={15} /> AI Batch
             </button>
           )}
-          <div className="hidden sm:flex -space-x-2 ml-1">
-            {project?.members?.slice(0, 4).map((m, i) => (
-              <div key={i} className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-white text-xs font-bold flex items-center justify-center border-2 border-white shadow-sm" title={m.name}>
-                {m.name?.charAt(0)?.toUpperCase()}
-              </div>
-            ))}
-          </div>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-all shadow-lg shadow-indigo-500/20 text-sm ml-auto"
+            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-3 py-2.5 rounded-xl font-medium flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-indigo-500/20 text-xs sm:text-sm col-span-2 sm:col-span-1"
           >
-            <Plus size={18} /> Add Task
+            <Plus size={16} /> Add Task
           </button>
         </div>
       </div>
