@@ -2,7 +2,7 @@
 
 A production-grade full-stack SaaS application for team collaboration. Organize projects, manage tasks with Kanban boards, track analytics, and control access with role-based permissions.
 
-**Live Demo**: *Deploy to Vercel + Railway*
+**Live Demo**: [https://frontend-lake-tau-31.vercel.app](https://frontend-lake-tau-31.vercel.app)
 
 ---
 
