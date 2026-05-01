@@ -232,62 +232,70 @@ export default function ProjectDetails() {
   return (
     <div className="h-full flex flex-col max-w-7xl mx-auto animate-fadeIn">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-5">
-        <button onClick={() => navigate('/projects')} className="p-2.5 bg-white rounded-xl shadow-sm hover:bg-gray-50 transition-colors border border-gray-100">
-          <ArrowLeft size={20} className="text-gray-600" />
-        </button>
+      <div className="flex flex-col gap-4 mb-5">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/projects')} className="p-2.5 bg-white rounded-xl shadow-sm hover:bg-gray-50 transition-colors border border-gray-100">
+            <ArrowLeft size={20} className="text-gray-600" />
+          </button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-gray-900 truncate">{project?.name}</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{project?.name}</h1>
             <p className="text-gray-500 text-sm truncate">{project?.description}</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
-            <button
-              onClick={handleShare}
-              disabled={shareLoading}
-              className="bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 px-3 py-2 rounded-xl font-medium flex items-center gap-1.5 transition-all text-sm"
-              title="Share Public Link"
-            >
-              <Share2 size={16} /> <span className="hidden sm:inline">Share</span>
-            </button>
-              <button 
-                onClick={() => setIsPlaybackOpen(true)}
-                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 text-sm sm:text-base border border-indigo-100"
-              >
-                <Play size={18} /> <span className="hidden sm:inline">Ghost Playback</span>
-              </button>
-              
-              <button 
-                onClick={() => setIsActivityOpen(!isActivityOpen)}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
-              >
-              <Activity size={16} /> <span className="hidden sm:inline">Activity</span>
-            </button>
-            {user?.role === 'Admin' && (
-              <button
-                onClick={() => setIsGenerating(true)}
-                className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-2 rounded-xl font-medium flex items-center gap-1.5 transition-all text-sm"
-                title="Batch AI Generate"
-              >
-                <Sparkles size={16} />
-              </button>
-            )}
-            <div className="hidden sm:flex -space-x-2 mr-1 ml-1">
-              {project?.members?.slice(0, 4).map((m, i) => (
-                <div key={i} className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-white text-xs font-bold flex items-center justify-center border-2 border-white shadow-sm" title={m.name}>
-                  {m.name?.charAt(0)?.toUpperCase()}
-                </div>
-              ))}
-            </div>
-            {user?.role === 'Admin' && (
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-all shadow-lg shadow-indigo-500/20 text-sm"
-              >
-                <Plus size={18} /> <span className="hidden sm:inline">Add Task</span>
-              </button>
-            )}
-          </div>
         </div>
+        
+        {/* Feature Buttons — always visible with labels */}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleShare}
+            disabled={shareLoading}
+            className="bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 px-3 py-2 rounded-xl font-medium flex items-center gap-1.5 transition-all text-sm"
+            title="Share Public Link"
+          >
+            <Share2 size={16} /> Share
+          </button>
+          <button 
+            onClick={() => setIsPlaybackOpen(true)}
+            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-2 rounded-xl font-medium transition-colors flex items-center gap-1.5 text-sm border border-indigo-100"
+          >
+            <Play size={16} /> Ghost Playback
+          </button>
+          <button 
+            onClick={() => setIsActivityOpen(!isActivityOpen)}
+            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-xl font-medium transition-colors flex items-center gap-1.5 text-sm"
+          >
+            <Activity size={16} /> Activity
+          </button>
+          <button
+            onClick={handleExportCSV}
+            className="bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 px-3 py-2 rounded-xl font-medium flex items-center gap-1.5 transition-all text-sm"
+            title="Export as CSV"
+          >
+            <Download size={16} /> Export CSV
+          </button>
+          {user?.role === 'Admin' && (
+            <button
+              onClick={() => setIsGenerating(true)}
+              className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-2 rounded-xl font-medium flex items-center gap-1.5 transition-all text-sm border border-indigo-100"
+              title="Batch AI Generate"
+            >
+              <Sparkles size={16} /> AI Batch
+            </button>
+          )}
+          <div className="hidden sm:flex -space-x-2 ml-1">
+            {project?.members?.slice(0, 4).map((m, i) => (
+              <div key={i} className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-white text-xs font-bold flex items-center justify-center border-2 border-white shadow-sm" title={m.name}>
+                {m.name?.charAt(0)?.toUpperCase()}
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-all shadow-lg shadow-indigo-500/20 text-sm ml-auto"
+          >
+            <Plus size={18} /> Add Task
+          </button>
+        </div>
+      </div>
 
         {/* AI Quick Task Creator Hook */}
         <form onSubmit={handleAiSubmit} className="mb-6 relative max-w-2xl group">
@@ -356,15 +364,7 @@ export default function ProjectDetails() {
           </div>
         )}
 
-        <button
-          onClick={handleExportCSV}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 text-sm font-medium transition-all ml-auto sm:ml-2"
-          title="Export as CSV"
-        >
-          <Download size={16} /> <span className="hidden sm:inline">Export</span>
-        </button>
-
-        <div className="ml-2 text-xs text-gray-400 self-center">
+        <div className="ml-auto text-xs text-gray-400 self-center">
           {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''}
         </div>
       </div>

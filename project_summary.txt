@@ -55,5 +55,5 @@ Security: bcrypt hashing, JWT tokens, secure environment variables
 4. LIVE URLS
 --------------------------------------------------
 Frontend: https://frontend-lake-tau-31.vercel.app
-Backend API: https://backend-mu-two-25.vercel.app
+Backend API: https://backend-production-bc0ea.up.railway.app
 GitHub Repo: https://github.com/AnshumaanSinghh/team-task-manager

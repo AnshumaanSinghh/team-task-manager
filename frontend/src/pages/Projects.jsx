@@ -78,14 +78,12 @@ export default function Projects() {
           <h1 className="text-3xl font-bold text-gray-900">Projects</h1>
           <p className="text-gray-500 mt-1">{projects.length} project{projects.length !== 1 ? 's' : ''} total</p>
         </div>
-        {user?.role === 'Admin' && (
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all shadow-lg shadow-indigo-500/20"
-          >
-            <Plus size={20} /> New Project
-          </button>
-        )}
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all shadow-lg shadow-indigo-500/20"
+        >
+          <Plus size={20} /> New Project
+        </button>
       </div>
 
       {/* Search */}
@@ -116,14 +114,12 @@ export default function Projects() {
           </div>
           <h3 className="text-xl font-semibold text-gray-900">No projects yet</h3>
           <p className="text-gray-500 mt-2 mb-6 max-w-sm mx-auto">Get started by creating your first project. Organize tasks, assign team members, and track progress.</p>
-          {user?.role === 'Admin' && (
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-5 py-2.5 rounded-xl font-medium transition-colors inline-flex items-center gap-2"
-            >
-              <Plus size={18} /> Create Your First Project
-            </button>
-          )}
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-5 py-2.5 rounded-xl font-medium transition-colors inline-flex items-center gap-2"
+          >
+            <Plus size={18} /> Create Your First Project
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
