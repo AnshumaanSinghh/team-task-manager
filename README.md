@@ -211,19 +211,22 @@ This starts both servers concurrently:
 
 ---
 
-## 🌐 Deployment (Vercel)
+## 🌐 Deployment (Mandatory Requirement)
 
-Both frontend and backend are deployed on Vercel's serverless edge network.
+As per project requirements, the API is structured to run on Railway, while the frontend is optimized for Vercel.
 
-### Backend
-- Root Directory: `backend`
+### Backend (Railway)
+- Set Root Directory to `backend`
+- Build Command: `npm install`
+- Start Command: `node server.js`
 - Environment Variables: `MONGO_URI`, `JWT_SECRET`, `NODE_ENV=production`, `GROQ_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`
 
-### Frontend
-- Root Directory: `frontend`
+### Frontend (Vercel)
+- Set Root Directory to `frontend`
 - Framework Preset: Vite
 - Build Command: `npm run build`
 - Output Directory: `dist`
+- Environment Variable: `VITE_API_URL=https://your-railway-backend-url.up.railway.app/api`
 
 ---
 

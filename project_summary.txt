@@ -8,7 +8,7 @@ TASKFLOW: PROJECT SUMMARY & DIFFERENTIATORS
 - Role-Based Access Control (RBAC): Admin vs. Member permissions (e.g., only Admins can delete tasks or invite members).
 - Interactive Kanban Board: Drag-and-drop task management with optimistic UI updates.
 - Dashboard Analytics: Real-time charts showing task completion rates, priorities, and upcoming deadlines.
-- Deployment: Both frontend and backend deployed on Vercel Serverless Edge network.
+- Deployment: Frontend deployed on Vercel Edge; Backend deployed natively on Railway (per assignment requirements).
 
 2. WHAT MAKES IT UNIQUE & BETTER THAN OTHERS (The "Wow Factor")
 --------------------------------------------------
@@ -40,8 +40,8 @@ Just like Notion or Google Docs, Admins can generate a secure, unique URL to sha
 H. 1-Click CSV Export
 A purely client-side feature that allows managers to export their filtered task board directly to a formatted CSV file instantly.
 
-I. Serverless-First Deployment Architecture
-Unlike traditional apps that crash on free hosting tiers due to memory limits, TaskFlow is deployed 100% on Vercel Serverless Edge networks. The database connection logic was custom-written to cache connections across serverless invocations, ensuring zero-downtime and massive scalability.
+I. Professional Deployment Architecture
+To strictly follow assignment guidelines and ensure robust performance, the Backend API is containerized and deployed on Railway, while the React Frontend is served lightning-fast via Vercel's CDN.
 
 3. TECHNOLOGIES USED
 --------------------------------------------------
@@ -49,8 +49,8 @@ Frontend: React 19, Vite 8, Tailwind CSS v4, Framer Motion, Recharts, react-mark
 Backend: Node.js, Express 5, Mongoose, JWT, bcryptjs
 AI: Groq (Llama 3), Google Gemini Flash, OpenRouter (multi-model fallback)
 Database: MongoDB Atlas
-Deployment: Vercel Serverless Edge (both frontend & backend)
-Security: bcrypt hashing, JWT tokens, encrypted API keys via Vercel Vault
+Deployment: Railway (Backend) & Vercel (Frontend)
+Security: bcrypt hashing, JWT tokens, secure environment variables
 
 4. LIVE URLS
 --------------------------------------------------

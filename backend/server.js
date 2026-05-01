@@ -60,8 +60,8 @@ app.get('/api/health', (req, res) => {
 
 app.use(errorHandler);
 
-// For local development
-if (process.env.NODE_ENV !== 'production') {
+// Start the server (Required for Railway, ignored by Vercel serverless)
+if (!process.env.VERCEL) {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }
