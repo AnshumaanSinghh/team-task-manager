@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const API_URL = import.meta.env.VITE_API_URL || 'https://backend-production-bc0ea.up.railway.app/api';
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_URL,
 });
 
 api.interceptors.request.use((config) => {
