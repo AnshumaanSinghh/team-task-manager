@@ -1,58 +1,54 @@
-TASKFLOW: PROJECT SUMMARY & DIFFERENTIATORS
+TASKFLOW: PROJECT SUMMARY & DIFFERENTIATORS (v3)
 
-1. WHAT WE HAVE BUILT (Core Features)
+1. CORE PLATFORM
 --------------------------------------------------
-- Full-Stack Architecture: React (Vite) Frontend + Node.js/Express Backend.
-- Database: MongoDB Atlas (M0 Cluster) with intelligent serverless connection pooling.
-- Authentication: JWT-based secure login and registration.
-- Role-Based Access Control (RBAC): Admin vs. Member permissions (e.g., only Admins can delete tasks or invite members).
-- Interactive Kanban Board: Drag-and-drop task management with optimistic UI updates.
-- Dashboard Analytics: Real-time charts showing task completion rates, priorities, and upcoming deadlines.
-- Deployment: Frontend deployed on Vercel Edge; Backend deployed natively on Railway (per assignment requirements).
+- Full stack: React 19 (Vite, Tailwind CSS 4) frontend + Node.js / Express 5 API + MongoDB.
+- JWT authentication, bcrypt hashing, rate-limited sign in and sign up.
+- Role-based access control enforced on the server for every project, task,
+  comment, activity, pulse, playback and standup endpoint (members only see
+  projects they belong to; only admins edit task details).
+- Four-column Kanban (To Do, In Progress, In Review, Completed) with drag and
+  drop ordering that persists, plus a sortable List view and a month Calendar.
+- Dashboard: team velocity (14 days), completion ring, status and priority
+  breakdown, my next deadlines, shipping streak, focus minutes, activity feed.
 
-2. WHAT MAKES IT UNIQUE & BETTER THAN OTHERS (The "Wow Factor")
+2. WHAT MAKES IT UNIQUE
 --------------------------------------------------
-Most portfolio task managers are simple CRUD (Create, Read, Update, Delete) apps. TaskFlow goes above and beyond with these premium differentiators:
+A. Blockers and dependencies: tasks can wait on other tasks. The API refuses to
+   complete a blocked task and rejects dependency cycles.
+B. WIP limits per column with a striped over-limit warning.
+C. Focus Mode: 25/50 minute sessions with a full-screen timer; time is logged
+   to the task and shown on the Team page as live presence.
+D. Team workload: open work, overdue, story points, weekly output, kudos and
+   focus minutes per person, with overload detection.
+E. Async standup generator: Done / Doing / Blockers per member, copied as
+   Markdown.
+F. Quick Add: "Design pricing page by Friday @riya #design 3pts urgent" becomes a
+   task with owner, timezone-correct due date, tag, estimate and priority.
+   Built-in parser works with no AI keys; Groq / Gemini / OpenRouter refine it.
+G. AI Planner: goal -> reviewable plan (tasks, estimates, checklists, dates)
+   before anything is created; built-in playbooks as fallback.
+H. @mentions with autocomplete and a notification inbox (assignments, mentions,
+   comments, status changes, kudos) that deep-links to the task.
+I. Kudos on completed work, decision log, project pulse (health score with
+   burnout warnings), ghost playback with scrubber and speed control.
+J. Revocable, privacy-safe public share links (no emails, comments or time logs).
+K. Command palette (Ctrl/Cmd K) with task search, and keyboard shortcuts.
 
-A. AI Magic Task Creator (NLP to JSON)
-Instead of manually filling out forms, users can type natural language: 
-"Build the login page by Friday, priority high, assign to Raj". 
-The backend routes this through a multi-model AI strategy (Groq -> Gemini -> OpenRouter) to automatically extract the title, calculate the deadline, find the correct team member, and generate the task. 
-
-B. AI "Next Best Action" (Rule-Based Intelligence)
-Every task sidebar has a "Suggest Next Step" button. The system analyzes the task state, the user's workload, and deadline status to provide intelligent recommendations like "Raj is handling 7 pending tasks. Consider reassigning." No heavy AI required — pure logic running under 200ms.
-
-C. Live Project Pulse (Heartbeat Monitor)
-Instead of just showing static tasks, TaskFlow includes a real-time health monitor for the project. It calculates a dynamic score (0-100) based on task completion, overdue tasks, and team activity. It features an animated ECG-style UI that changes color/speed based on health, automatically detects team burnout (e.g., if one user has too many overdue tasks), and generates 1-line smart insights. A dynamic Risk Badge (Healthy / At Risk / Critical) updates every 15 seconds.
-
-D. Decision Mode (Comments Upgrade)
-Any comment can be marked as a "Key Decision" by an Admin. Pinned decisions float to the top of the task details, making it easy to track what was decided without scrolling through an entire comment thread. Inspired by enterprise tools like Confluence.
-
-E. Ghost Playback (Smart Highlights)
-A cinematic, animated timeline replay that visually plays back every action taken in the project. The system automatically identifies and highlights: Peak Activity Days, the Largest Completed Task, and Missed Deadlines. Play, pause, and scrub through the entire project history.
-
-F. Smart Markdown Comments
-Inside task details, team members can collaborate using a chat interface that supports full Markdown. This mimics professional tools like Jira and GitHub.
-
-G. Public Share Links (Read-Only)
-Just like Notion or Google Docs, Admins can generate a secure, unique URL to share their project board with anyone (clients, recruiters, professors) without requiring them to log in.
-
-H. 1-Click CSV Export
-A purely client-side feature that allows managers to export their filtered task board directly to a formatted CSV file instantly.
-
-I. Professional Deployment Architecture
-To strictly follow assignment guidelines and ensure robust performance, the Backend API is containerized and deployed on Railway, while the React Frontend is served lightning-fast via Vercel's CDN.
-
-3. TECHNOLOGIES USED
+3. DESIGN
 --------------------------------------------------
-Frontend: React 19, Vite 8, Tailwind CSS v4, Framer Motion, Recharts, react-markdown, @hello-pangea/dnd, Lucide React, react-hot-toast
-Backend: Node.js, Express 5, Mongoose, JWT, bcryptjs
-AI: Groq (Llama 3), Google Gemini Flash, OpenRouter (multi-model fallback)
-Database: MongoDB Atlas
-Deployment: Railway (Backend) & Vercel (Frontend)
-Security: bcrypt hashing, JWT tokens, secure environment variables
+Black, green and white design system with dark and light themes, 3D press
+buttons, tilt-on-hover cards, page transitions, spring modals, animated counters
+and a circular theme reveal (View Transitions API). Respects reduced motion.
 
-4. LIVE URLS
+4. QUALITY
+--------------------------------------------------
+- Backend unit tests (parser, mentions, pulse, standup, planner) and an
+  end-to-end API test against a real MongoDB (node:test).
+- Frontend lint clean (ESLint + React Hooks rules), production build verified.
+- Demo seed script: npm run seed.
+
+5. LIVE URLS
 --------------------------------------------------
 Frontend: https://frontend-lake-tau-31.vercel.app
 Backend API: https://backend-production-bc0ea.up.railway.app
