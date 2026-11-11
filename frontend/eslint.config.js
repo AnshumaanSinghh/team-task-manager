@@ -18,4 +18,9 @@ export default defineConfig([
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
+  {
+    // Context modules export a provider plus its hook; that is fine for fast refresh.
+    files: ['src/context/**/*.jsx'],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
 ])

@@ -1,15 +1,23 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="TaskFlow – Modern team task management with Kanban boards, analytics dashboards, and role-based access control. Organize projects, assign tasks, and track progress." />
-    <meta name="theme-color" content="#6366F1" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <title>TaskFlow – Team Task Manager</title>
+    <meta name="description" content="TaskFlow is a team task manager with Kanban, list and calendar views, blockers, focus sessions, live team workload, async standups and AI planning." />
+    <meta name="theme-color" content="#030403" />
+    <script>
+      try {
+        var t = localStorage.getItem('theme');
+        document.documentElement.dataset.theme = t === 'light' || t === 'dark' ? t : 'dark';
+      } catch (e) {
+        document.documentElement.dataset.theme = 'dark';
+      }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <title>TaskFlow · Team Task Manager</title>
   </head>
   <body>
     <div id="root"></div>

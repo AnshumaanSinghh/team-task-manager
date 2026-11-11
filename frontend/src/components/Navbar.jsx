@@ -1,128 +1,146 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, NavLink, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import { LayoutDashboard, FolderKanban, Users, LogOut, Moon, Sun, Menu, X, Search, Timer, Keyboard } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { LayoutDashboard, FolderKanban, LogOut, Moon, Sun, Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import { useFocus } from '../context/FocusContext';
+import { fmtClock } from '../lib/format';
+import Avatar from './ui/Avatar';
+import { Logo } from './ui/Bits';
+import NotificationBell from './NotificationBell';
 
-export default function Navbar() {
+const LINKS = [
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/projects', label: 'Projects', icon: FolderKanban },
+  { to: '/team', label: 'Team', icon: Users }
+];
+
+export default function Navbar({ onShowShortcuts }) {
   const { user, logout } = useAuth();
-  const { darkMode, toggleDarkMode } = useTheme();
+  const { darkMode, toggleTheme } = useTheme();
+  const { focus, remaining, openOverlay } = useFocus();
   const location = useLocation();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobilePath, setMobilePath] = useState(null);
+  const [menuPath, setMenuPath] = useState(null);
+  const mobileOpen = mobilePath === location.pathname;
+  const menuOpen = menuPath === location.pathname;
+  const setMobileOpen = (fn) => setMobilePath((typeof fn === 'function' ? fn(mobileOpen) : fn) ? location.pathname : null);
+  const setMenuOpen = (fn) => setMenuPath((typeof fn === 'function' ? fn(menuOpen) : fn) ? location.pathname : null);
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
-  const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
-
-  const navLinks = [
-    { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
-    { to: '/projects', label: 'Projects', icon: <FolderKanban size={18} /> },
-  ];
+  const openPalette = () => window.dispatchEvent(new Event('taskflow:palette'));
 
   return (
-    <nav className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 shadow-sm sticky top-0 z-50 transition-colors duration-300 relative">
-      <div className="flex items-center justify-between">
-        {/* Left: Logo + Nav */}
-        <div className="flex items-center gap-6 md:gap-8">
-          <Link to="/dashboard" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-lg shadow-md group-hover:shadow-lg transition-shadow">
-              T
-            </div>
-            <span className="text-lg font-bold text-gray-900 hidden sm:block tracking-tight">
-              TaskFlow
+    <header className="sticky top-0 z-50 border-b border-line panel-glass">
+      <div className="flex items-center gap-3 px-4 sm:px-6 lg:px-8 h-16">
+        <Link to="/dashboard" className="flex-none" aria-label="TaskFlow home"><Logo size={30} /></Link>
+
+        <nav className="hidden md:flex items-center gap-1 ml-6" aria-label="Main">
+          {LINKS.map(({ to, label, icon: Icon }) => (
+            <NavLink key={to} to={to} className="relative px-3.5 py-2 rounded-xl text-sm font-semibold">
+              {({ isActive }) => (
+                <>
+                  {isActive && (
+                    <motion.span layoutId="nav-pill" className="absolute inset-0 rounded-xl bg-accent/12 border border-accent/30"
+                      transition={{ type: 'spring', stiffness: 420, damping: 34 }} />
+                  )}
+                  <span className={`relative flex items-center gap-2 transition-colors ${isActive ? 'text-accent-text' : 'text-muted hover:text-fg'}`}>
+                    <Icon size={16} /> {label}
+                  </span>
+                </>
+              )}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="flex-1" />
+
+        <button type="button" onClick={openPalette}
+          className="hidden lg:flex items-center gap-2 h-9 pl-3 pr-2 rounded-xl border border-line bg-surface-2 text-subtle text-sm hover:border-line-strong hover:text-muted transition-colors w-56 whitespace-nowrap">
+          <Search size={15} /> <span className="flex-1 text-left">Search or jump to…</span>
+          <span className="kbd">{isMac ? '⌘' : 'Ctrl'} K</span>
+        </button>
+
+        <AnimatePresence>
+          {focus && (
+            <motion.button type="button" onClick={openOverlay}
+              initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
+              className="btn btn-sm btn-primary !mb-0 font-mono" title={`Focusing on ${focus.task?.title || 'a task'}`}>
+              <Timer size={14} /> {fmtClock(remaining)}
+            </motion.button>
+          )}
+        </AnimatePresence>
+
+        <button type="button" onClick={openPalette} className="lg:hidden btn btn-sm btn-icon !mb-0" aria-label="Search"><Search size={16} /></button>
+        <NotificationBell />
+        <button type="button" onClick={toggleTheme} className="btn btn-sm btn-icon !mb-0" aria-label={darkMode ? 'Switch to light theme' : 'Switch to dark theme'} title="Toggle theme">
+          <motion.span key={darkMode ? 'sun' : 'moon'} initial={{ rotate: -90, scale: 0.5, opacity: 0 }} animate={{ rotate: 0, scale: 1, opacity: 1 }} className="grid">
+            {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+          </motion.span>
+        </button>
+
+        <div className="relative hidden sm:block">
+          <button type="button" onClick={() => setMenuOpen((v) => !v)} className="flex items-center gap-2.5 pl-1 pr-2.5 py-1 rounded-xl hover:bg-surface-3 transition-colors" aria-haspopup="menu" aria-expanded={menuOpen}>
+            <Avatar name={user?.name} size="md" live={Boolean(focus)} />
+            <span className="hidden xl:block text-left leading-tight">
+              <span className="block text-sm font-semibold">{user?.name}</span>
+              <span className="block text-[11px] text-subtle">{user?.role}</span>
             </span>
-          </Link>
-
-          {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-1">
-            {navLinks.map(link => (
-              <Link
-                key={link.to}
-                to={link.to}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  isActive(link.to)
-                    ? 'bg-indigo-50 text-indigo-600'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                }`}
-              >
-                {link.icon}
-                {link.label}
-              </Link>
-            ))}
-          </div>
+          </button>
+          <AnimatePresence>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                <motion.div role="menu" initial={{ opacity: 0, y: -6, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                  transition={{ duration: 0.16 }} className="absolute right-0 mt-2 w-60 card p-2 z-50 origin-top-right">
+                  <div className="px-3 py-2.5 mb-1 border-b border-line">
+                    <p className="text-sm font-semibold truncate">{user?.name}</p>
+                    <p className="text-xs text-subtle truncate">{user?.email}</p>
+                  </div>
+                  <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onShowShortcuts(); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-muted hover:bg-surface-3 hover:text-fg">
+                    <Keyboard size={15} /> Keyboard shortcuts <span className="kbd ml-auto">?</span>
+                  </button>
+                  <button type="button" role="menuitem" onClick={() => logout()} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-muted hover:bg-surface-3 hover:text-fg">
+                    <LogOut size={15} /> Sign out
+                  </button>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
         </div>
 
-        {/* Right: Controls */}
-        <div className="flex items-center gap-2 md:gap-3">
-          {/* Dark mode toggle */}
-          <button
-            onClick={toggleDarkMode}
-            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-all duration-200"
-            title={darkMode ? 'Light mode' : 'Dark mode'}
-          >
-            {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
-
-          {/* User info */}
-          <div className="hidden sm:flex items-center gap-3 pl-3 border-l border-gray-200">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-semibold text-sm shadow-sm">
-              {user?.name?.charAt(0)?.toUpperCase()}
-            </div>
-            <div className="text-sm hidden lg:block">
-              <p className="font-semibold text-gray-800 leading-tight">{user?.name}</p>
-              <p className="text-xs text-gray-500">{user?.role}</p>
-            </div>
-          </div>
-
-          <button
-            onClick={logout}
-            className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200"
-            title="Logout"
-          >
-            <LogOut size={20} />
-          </button>
-
-          {/* Mobile menu toggle */}
-          <button
-            onClick={() => setMobileOpen(!mobileOpen)}
-            className="md:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
-          >
-            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
-        </div>
+        <button type="button" onClick={() => setMobileOpen((v) => !v)} className="md:hidden btn btn-sm btn-icon !mb-0" aria-label="Menu" aria-expanded={mobileOpen}>
+          {mobileOpen ? <X size={16} /> : <Menu size={16} />}
+        </button>
       </div>
 
-      {/* Mobile menu */}
-      {mobileOpen && (
-        <div className="absolute top-full left-0 right-0 bg-white border-b border-gray-200 shadow-lg md:hidden animate-slideUp z-50">
-          <div className="p-4 space-y-1">
-            {/* User info in mobile */}
-            <div className="flex items-center gap-3 px-4 py-3 mb-2 bg-gray-50 rounded-xl border border-gray-100">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-semibold text-sm shadow-sm">
-                {user?.name?.charAt(0)?.toUpperCase()}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.nav initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+            className="md:hidden overflow-hidden border-t border-line" aria-label="Mobile">
+            <div className="p-3 space-y-1">
+              <div className="flex items-center gap-3 px-3 py-3 mb-2 rounded-xl bg-surface-2 border border-line">
+                <Avatar name={user?.name} size="lg" />
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm truncate">{user?.name}</p>
+                  <p className="text-xs text-subtle">{user?.role}</p>
+                </div>
               </div>
-              <div>
-                <p className="font-semibold text-gray-800 text-sm">{user?.name}</p>
-                <p className="text-xs text-gray-500">{user?.role}</p>
-              </div>
+              {LINKS.map(({ to, label, icon: Icon }, i) => (
+                <motion.div key={to} initial={{ x: -12, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: i * 0.05 }}>
+                  <NavLink to={to} className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold ${isActive ? 'bg-accent/12 text-accent-text' : 'text-muted'}`}>
+                    <Icon size={18} /> {label}
+                  </NavLink>
+                </motion.div>
+              ))}
+              <button type="button" onClick={() => logout()} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-muted">
+                <LogOut size={18} /> Sign out
+              </button>
             </div>
-            {navLinks.map(link => (
-              <Link
-                key={link.to}
-                to={link.to}
-                onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                  isActive(link.to)
-                    ? 'bg-indigo-50 text-indigo-600'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                {link.icon}
-                {link.label}
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-    </nav>
+          </motion.nav>
+        )}
+      </AnimatePresence>
+    </header>
   );
 }

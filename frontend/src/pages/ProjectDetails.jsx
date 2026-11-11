@@ -1,562 +1,389 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import api from '../api';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import toast from 'react-hot-toast';
+import {
+  ArrowLeft, Plus, Search, Zap, Wand2, Settings2, Coffee, History, Download, Activity, X,
+  Columns3, List, CalendarDays, CornerDownLeft, Share2
+} from 'lucide-react';
+import api, { errorMessage } from '../api';
 import { useAuth } from '../context/AuthContext';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Plus, ArrowLeft, Clock, Trash2, Search, Filter, AlertTriangle, Flag, CheckSquare, Sparkles, Download, Share2, Activity, Zap, Play, X } from 'lucide-react';
+import { useFocus } from '../context/FocusContext';
+import { useHotkeys } from '../lib/useHotkeys';
+import { celebrate } from '../lib/confetti';
+import { COLUMNS, PROJECT_COLORS, byOrder, downloadCsv, fmtDate, isMine, openBlockers, taskOrder } from '../lib/format';
+import { AvatarStack } from '../components/ui/Avatar';
+import { PriorityBars, Segmented } from '../components/ui/Bits';
+import KanbanBoard from '../components/board/KanbanBoard';
+import ListView from '../components/board/ListView';
+import CalendarView from '../components/board/CalendarView';
+import ProjectPulse from '../components/ProjectPulse';
+import ActivityFeed from '../components/ActivityFeed';
 import CreateTaskModal from '../components/CreateTaskModal';
 import TaskDetailsModal from '../components/TaskDetailsModal';
-import AIGeneratorModal from '../components/AIGeneratorModal';
-import ProjectPulse from '../components/ProjectPulse';
+import AIPlannerModal from '../components/AIPlannerModal';
+import ProjectSettingsModal from '../components/ProjectSettingsModal';
+import StandupModal from '../components/StandupModal';
 import GhostPlayback from '../components/GhostPlayback';
-import toast from 'react-hot-toast';
-import confetti from 'canvas-confetti';
 
-const priorityConfig = {
-  High: { class: 'priority-high', icon: '🔴' },
-  Medium: { class: 'priority-medium', icon: '🟡' },
-  Low: { class: 'priority-low', icon: '🟢' },
+const VIEWS = [
+  { value: 'board', label: 'Board', icon: <Columns3 size={14} /> },
+  { value: 'list', label: 'List', icon: <List size={14} /> },
+  { value: 'calendar', label: 'Calendar', icon: <CalendarDays size={14} /> }
+];
+
+const readView = () => {
+  try {
+    return localStorage.getItem('taskflow:view') || 'board';
+  } catch {
+    return 'board';
+  }
 };
-
-const getDeadlineStatus = (deadline, status) => {
-  if (status === 'Completed') return { label: 'Done', color: 'text-emerald-500' };
-  const now = new Date();
-  const dl = new Date(deadline);
-  const diffDays = Math.ceil((dl - now) / (1000 * 60 * 60 * 24));
-  if (diffDays < 0) return { label: 'Overdue', color: 'text-red-500 font-semibold' };
-  if (diffDays <= 2) return { label: 'Due soon', color: 'text-amber-500 font-medium' };
-  return { label: '', color: 'text-gray-400' };
-};
-
-const SkeletonBoard = () => (
-  <div className="flex gap-5 h-full items-start">
-    {[1, 2, 3].map(i => (
-      <div key={i} className="w-80 bg-gray-100/50 rounded-2xl border border-gray-200 p-4">
-        <div className="skeleton w-24 h-5 mb-4"></div>
-        {[1, 2].map(j => (
-          <div key={j} className="bg-white rounded-xl p-4 mb-3 border border-gray-100">
-            <div className="skeleton w-3/4 h-4 mb-3"></div>
-            <div className="skeleton w-full h-3 mb-2"></div>
-            <div className="skeleton w-1/2 h-3"></div>
-          </div>
-        ))}
-      </div>
-    ))}
-  </div>
-);
 
 export default function ProjectDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [project, setProject] = useState(null);
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterPriority, setFilterPriority] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
-  const [selectedTask, setSelectedTask] = useState(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  
-  // New features state
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [isAiLoading, setIsAiLoading] = useState(false);
-  const [isActivityOpen, setIsActivityOpen] = useState(false);
-  const [isPlaybackOpen, setIsPlaybackOpen] = useState(false);
-  const [activities, setActivities] = useState([]);
-  const [shareLoading, setShareLoading] = useState(false);
+  const [params, setParams] = useSearchParams();
+  const { user, isAdmin } = useAuth();
+  const { focus } = useFocus();
 
-  const fetchData = useCallback(async () => {
-    try {
-      const [projectRes, tasksRes] = await Promise.all([
-        api.get(`/projects/${id}`),
-        api.get(`/tasks?projectId=${id}`)
-      ]);
-      setProject(projectRes.data);
-      setTasks(tasksRes.data);
-    } catch (error) {
-      toast.error('Failed to load project');
-      navigate('/projects');
-    } finally {
-      setLoading(false);
-    }
+  const [project, setProject] = useState(null);
+  const [tasks, setTasks] = useState(null);
+  const [view, setViewState] = useState(readView);
+  const [search, setSearch] = useState('');
+  const [priority, setPriority] = useState('');
+  const [owner, setOwner] = useState('all');
+  const [tag, setTag] = useState('');
+  const [activityOpen, setActivityOpen] = useState(false);
+  const [activities, setActivities] = useState([]);
+  const [modal, setModal] = useState(null);
+  const [createStatus, setCreateStatus] = useState('To Do');
+  const [quick, setQuick] = useState('');
+  const [quickBusy, setQuickBusy] = useState(false);
+  const [pulseKey, setPulseKey] = useState(0);
+  const searchRef = useRef(null);
+  const quickRef = useRef(null);
+  const dragging = useRef(false);
+
+  const setView = (v) => {
+    setViewState(v);
+    try { localStorage.setItem('taskflow:view', v); } catch { /* ignore */ }
+  };
+
+  const loadTasks = useCallback(async () => {
+    const { data } = await api.get('/tasks', { params: { projectId: id } });
+    setTasks(data);
+  }, [id]);
+
+  const loadActivity = useCallback(() => {
+    api.get(`/projects/${id}/activity`, { params: { limit: 60 } }).then((r) => setActivities(r.data)).catch(() => {});
+  }, [id]);
+
+  useEffect(() => {
+    let alive = true;
+    Promise.all([api.get(`/projects/${id}`), api.get('/tasks', { params: { projectId: id } })])
+      .then(([p, t]) => {
+        if (!alive) return;
+        setProject(p.data);
+        setTasks(t.data);
+      })
+      .catch((error) => {
+        if (!alive) return;
+        toast.error(errorMessage(error, 'Could not open this project'));
+        navigate('/projects', { replace: true });
+      });
+    return () => { alive = false; };
   }, [id, navigate]);
 
+  useEffect(() => { if (activityOpen) loadActivity(); }, [activityOpen, loadActivity, tasks]);
+
+  // Live refresh: poll while visible, and react to changes made elsewhere (focus sessions etc.)
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    const tick = () => {
+      if (document.visibilityState === 'visible' && !dragging.current) loadTasks().catch(() => {});
+    };
+    const intervalId = setInterval(tick, 20000);
+    const onChange = () => loadTasks().catch(() => {});
+    window.addEventListener('taskflow:task-changed', onChange);
+    document.addEventListener('visibilitychange', tick);
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('taskflow:task-changed', onChange);
+      document.removeEventListener('visibilitychange', tick);
+    };
+  }, [loadTasks]);
 
-  const fetchActivities = async () => {
-    try {
-      const res = await api.get(`/projects/${id}/activity`);
-      setActivities(res.data);
-    } catch (error) {
-      console.error('Failed to load activities', error);
-    }
-  };
+  const selectedId = params.get('task');
+  const selected = tasks?.find((t) => t._id === selectedId) || null;
+  const openTask = (t) => setParams((p) => { p.set('task', t._id); return p; });
+  const closeTask = () => setParams((p) => { p.delete('task'); return p; });
 
   useEffect(() => {
-    if (isActivityOpen) fetchActivities();
-  }, [isActivityOpen]);
+    if (tasks && selectedId && !selected) closeTask();
+  }, [tasks, selectedId, selected]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleAiSubmit = async (e) => {
-    e.preventDefault();
-    if (!aiPrompt.trim()) return;
-    setIsAiLoading(true);
-    try {
-      await api.post('/tasks/ai-create', { prompt: aiPrompt, projectId: id });
-      toast.success('Task created magically! ✨');
-      setAiPrompt('');
-      fetchData();
-      if (isActivityOpen) fetchActivities();
-    } catch (error) {
-      toast.error('Failed to create task via AI');
-    } finally {
-      setIsAiLoading(false);
-    }
-  };
-
-  const handleShare = async () => {
-    setShareLoading(true);
-    try {
-      const res = await api.post(`/projects/${id}/share`);
-      const shareUrl = `${window.location.origin}/public/${res.data.shareId}`;
-      await navigator.clipboard.writeText(shareUrl);
-      toast.success('Public link copied to clipboard!');
-    } catch (error) {
-      toast.error('Failed to generate share link');
-    } finally {
-      setShareLoading(false);
-    }
-  };
-
-  const filteredTasks = useMemo(() => {
-    return tasks.filter(t => {
-      const matchesSearch = !searchQuery || t.title.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesPriority = !filterPriority || t.priority === filterPriority;
-      return matchesSearch && matchesPriority;
+  const upsert = (task) => {
+    setTasks((ts) => {
+      const keep = ts.find((t) => t._id === task._id);
+      const merged = keep ? { ...task, projectId: keep.projectId } : task;
+      return keep ? ts.map((t) => (t._id === task._id ? merged : t)) : [...ts, merged];
     });
-  }, [tasks, searchQuery, filterPriority]);
+    setPulseKey((k) => k + 1);
+  };
 
-  const onDragEnd = useCallback(async (result) => {
-    const { destination, source, draggableId } = result;
+  const members = project?.members || [];
+  const allTags = useMemo(() => [...new Set((tasks || []).flatMap((t) => t.tags || []))].sort(), [tasks]);
+
+  const filtered = useMemo(() => (tasks || []).filter((t) => {
+    if (priority && t.priority !== priority) return false;
+    if (owner === 'me' && !isMine(t, user)) return false;
+    if (owner === 'none' && t.assignedTo) return false;
+    if (tag && !(t.tags || []).includes(tag)) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (!`${t.title} ${t.description} ${(t.tags || []).join(' ')} ${t.assignedTo?.name || ''}`.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  }), [tasks, priority, owner, tag, search, user]);
+
+  const filtersOn = priority || owner !== 'all' || tag || search;
+
+  const moveTask = async (task, status, order) => {
+    if (status === 'Completed' && task.status !== 'Completed') {
+      const waiting = openBlockers(task, tasks);
+      if (waiting.length) {
+        toast.error(`Blocked by "${waiting[0].title}"${waiting.length > 1 ? ` and ${waiting.length - 1} more` : ''}. Finish ${waiting.length === 1 ? 'it' : 'them'} first.`);
+        return;
+      }
+    }
+    const before = tasks;
+    const col = COLUMNS.find((c) => c.key === status);
+    const limit = col?.wip ? project.wipLimits?.[col.wip] || 0 : 0;
+    if (status !== task.status && limit && tasks.filter((t) => t.status === status).length >= limit) {
+      toast(`${status} is over its WIP limit of ${limit}`, { icon: '⚠️' });
+    }
+    setTasks((ts) => ts.map((t) => (t._id === task._id ? { ...t, status, ...(order !== undefined ? { order } : {}) } : t)));
+    if (status === 'Completed' && task.status !== 'Completed') celebrate();
+    try {
+      const { data } = await api.put(`/tasks/${task._id}`, { status, ...(order !== undefined ? { order } : {}) });
+      upsert(data);
+    } catch (error) {
+      setTasks(before);
+      toast.error(errorMessage(error, 'Could not move the task'));
+    }
+  };
+
+  const onDragEnd = ({ destination, source, draggableId }) => {
+    dragging.current = false;
     if (!destination) return;
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
-
-    const newStatus = destination.droppableId;
-    const prevTasks = [...tasks];
-
-    setTasks(prev => prev.map(task =>
-      task._id === draggableId ? { ...task, status: newStatus } : task
-    ));
-
-    // Gamification: Confetti on Complete
-    if (newStatus === 'Completed') {
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#10B981', '#34D399', '#6366F1']
-      });
-    }
-
-    try {
-      await api.put(`/tasks/${draggableId}`, { status: newStatus });
-      toast.success(`Moved to ${newStatus}`);
-    } catch (error) {
-      toast.error('Failed to update task');
-      setTasks(prevTasks);
-    }
-  }, [tasks]);
-
-  const handleDeleteTask = useCallback(async (taskId) => {
-    if (!window.confirm('Delete this task? This cannot be undone.')) return;
-    try {
-      await api.delete(`/tasks/${taskId}`);
-      toast.success('Task deleted');
-      setTasks(prev => prev.filter(t => t._id !== taskId));
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to delete task');
-    }
-  }, []);
-
-  const handleExportCSV = () => {
-    if (filteredTasks.length === 0) {
-      toast.error('No tasks to export');
-      return;
-    }
-
-    const headers = ['Title', 'Description', 'Status', 'Priority', 'Assigned To', 'Deadline'];
-    const csvContent = [
-      headers.join(','),
-      ...filteredTasks.map(t => [
-        `"${t.title.replace(/"/g, '""')}"`,
-        `"${t.description.replace(/"/g, '""')}"`,
-        t.status,
-        t.priority || 'Medium',
-        `"${t.assignedTo ? t.assignedTo.name : 'Unassigned'}"`,
-        new Date(t.deadline).toLocaleDateString()
-      ].join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${project?.name.replace(/\s+/g, '_')}_tasks.csv`;
-    link.click();
-    toast.success('Tasks exported successfully');
+    const task = tasks.find((t) => t._id === draggableId);
+    const column = filtered.filter((t) => t.status === destination.droppableId && t._id !== draggableId).sort(byOrder);
+    const prev = column[destination.index - 1];
+    const next = column[destination.index];
+    let order;
+    if (prev && next) order = (taskOrder(prev) + taskOrder(next)) / 2;
+    else if (prev) order = taskOrder(prev) + 1024;
+    else if (next) order = taskOrder(next) - 1024;
+    else order = Date.now();
+    moveTask(task, destination.droppableId, order);
   };
 
-  if (loading) {
+  const submitQuick = async (e) => {
+    e.preventDefault();
+    if (!quick.trim() || quickBusy) return;
+    setQuickBusy(true);
+    try {
+      const { data } = await api.post('/tasks/ai-create', { prompt: quick, projectId: id, tzOffset: new Date().getTimezoneOffset() });
+      upsert(data.task);
+      setQuick('');
+      const t = data.task;
+      const bits = [t.assignedTo ? `for ${t.assignedTo.name.split(' ')[0]}` : null, `due ${fmtDate(t.deadline, { weekday: 'short', month: 'short', day: 'numeric' })}`, t.priority === 'High' ? 'high priority' : null].filter(Boolean);
+      toast.success(`Added “${t.title}” ${bits.join(', ')}`, { duration: 4500 });
+      if (data.summary.assigneeName && !data.summary.assigneeMatched) {
+        toast(`No project member called “${data.summary.assigneeName}”, so it is unassigned.`, { icon: 'ℹ️', duration: 5000 });
+      }
+    } catch (error) {
+      toast.error(errorMessage(error, 'Quick Add failed'));
+    } finally {
+      setQuickBusy(false);
+    }
+  };
+
+  const exportCsv = () => {
+    if (!filtered.length) return toast.error('Nothing to export');
+    downloadCsv(`${project.name.replace(/[^\w-]+/g, '_')}_tasks.csv`, [
+      ['Title', 'Description', 'Status', 'Priority', 'Owner', 'Deadline', 'Estimate', 'Tags', 'Time logged (min)', 'Blocked by'],
+      ...filtered.map((t) => [
+        t.title, t.description, t.status, t.priority, t.assignedTo?.name || 'Unassigned', new Date(t.deadline).toLocaleDateString(),
+        t.estimate || '', (t.tags || []).join(' '), Math.round((t.timeSpent || 0) / 60),
+        openBlockers(t, tasks).map((b) => b.title).join('; ')
+      ])
+    ]);
+    toast.success(`Exported ${filtered.length} task${filtered.length === 1 ? '' : 's'}`);
+    return undefined;
+  };
+
+  const openCreate = (status = 'To Do') => {
+    setCreateStatus(status);
+    setModal('create');
+  };
+
+  useHotkeys({
+    n: () => isAdmin && openCreate(),
+    q: () => isAdmin && quickRef.current?.focus(),
+    '/': () => searchRef.current?.focus(),
+    1: () => setView('board'),
+    2: () => setView('list'),
+    3: () => setView('calendar'),
+    a: () => setActivityOpen((v) => !v)
+  }, Boolean(project));
+
+  if (!project || !tasks) {
     return (
-      <div className="h-full flex flex-col max-w-7xl mx-auto animate-fadeIn">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="skeleton w-10 h-10 rounded-lg"></div>
-          <div>
-            <div className="skeleton w-48 h-7 mb-1"></div>
-            <div className="skeleton w-72 h-4"></div>
-          </div>
-        </div>
-        <SkeletonBoard />
+      <div className="max-w-[1500px] mx-auto">
+        <div className="skeleton h-10 w-80 mb-3" />
+        <div className="skeleton h-5 w-[28rem] max-w-full mb-6" />
+        <div className="skeleton h-[74px] !rounded-2xl mb-5" />
+        <div className="flex gap-4 overflow-hidden">{COLUMNS.map((c) => <div key={c.key} className="skeleton h-[420px] w-[300px] flex-none !rounded-2xl" />)}</div>
       </div>
     );
   }
 
-  const columns = [
-    { key: 'To Do', color: 'bg-red-500', label: 'To Do' },
-    { key: 'In Progress', color: 'bg-amber-500', label: 'In Progress' },
-    { key: 'Completed', color: 'bg-emerald-500', label: 'Completed' },
-  ];
+  const color = PROJECT_COLORS[project.color] || PROJECT_COLORS.emerald;
 
   return (
-    <div className="h-full flex flex-col max-w-7xl mx-auto animate-fadeIn">
+    <div className="max-w-[1500px] mx-auto">
       {/* Header */}
-      <div className="flex flex-col gap-4 mb-5">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/projects')} className="p-2.5 bg-white rounded-xl shadow-sm hover:bg-gray-50 transition-colors border border-gray-100">
-            <ArrowLeft size={20} className="text-gray-600" />
-          </button>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{project?.name}</h1>
-            <p className="text-gray-500 text-sm truncate">{project?.description}</p>
+      <div className="flex flex-col xl:flex-row xl:items-end gap-4 mb-5">
+        <div className="flex items-start gap-3 min-w-0 flex-1">
+          <Link to="/projects" className="btn btn-icon btn-sm mt-1" aria-label="Back to projects"><ArrowLeft size={16} /></Link>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2.5">
+              <span className="w-3 h-3 rounded-full flex-none" style={{ background: color, boxShadow: `0 0 12px ${color}` }} />
+              <h1 className="text-2xl sm:text-3xl font-bold truncate">{project.name}</h1>
+            </div>
+            <p className="text-muted text-sm mt-1 line-clamp-2 max-w-3xl">{project.description}</p>
+            <div className="flex items-center gap-3 mt-2.5">
+              <AvatarStack people={members} max={6} />
+              <span className="text-xs text-subtle">{members.length} member{members.length === 1 ? '' : 's'} · {tasks.length} task{tasks.length === 1 ? '' : 's'}</span>
+            </div>
           </div>
         </div>
-        
-        {/* Feature Buttons — grid on mobile, flex wrap on desktop */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }} className="sm:flex sm:flex-wrap sm:gap-2">
-          <button
-            onClick={handleShare}
-            disabled={shareLoading}
-            className="bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 rounded-xl font-medium transition-all"
-            style={{ padding: '10px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-            title="Share Public Link"
-          >
-            <Share2 size={14} /> Share Link
-          </button>
-          <button 
-            onClick={() => setIsPlaybackOpen(true)}
-            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-100 rounded-xl font-medium transition-colors"
-            style={{ padding: '10px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-          >
-            <Play size={14} /> Playback
-          </button>
-          <button 
-            onClick={() => setIsActivityOpen(!isActivityOpen)}
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors"
-            style={{ padding: '10px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-          >
-            <Activity size={14} /> Activity
-          </button>
-          <button
-            onClick={handleExportCSV}
-            className="bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 rounded-xl font-medium transition-all"
-            style={{ padding: '10px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-            title="Export as CSV"
-          >
-            <Download size={14} /> Export CSV
-          </button>
-          {user?.role === 'Admin' && (
-            <button
-              onClick={() => setIsGenerating(true)}
-              className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-100 rounded-xl font-medium transition-all"
-              style={{ padding: '10px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-              title="Batch AI Generate"
-            >
-              <Sparkles size={14} /> AI Batch
-            </button>
-          )}
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-medium transition-all shadow-lg shadow-indigo-500/20"
-            style={{ padding: '10px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', gridColumn: user?.role === 'Admin' ? 'span 2' : 'span 1' }}
-          >
-            <Plus size={14} /> Add Task
-          </button>
+        <div className="flex flex-wrap gap-2 xl:justify-end">
+          <button type="button" onClick={() => setModal('standup')} className="btn btn-sm"><Coffee size={14} /> Standup</button>
+          <button type="button" onClick={() => setModal('playback')} className="btn btn-sm"><History size={14} /> Playback</button>
+          <button type="button" onClick={exportCsv} className="btn btn-sm"><Download size={14} /> CSV</button>
+          {isAdmin && <button type="button" onClick={() => setModal('share')} className="btn btn-sm"><Share2 size={14} /> Share</button>}
+          {isAdmin && <button type="button" onClick={() => setModal('settings')} className="btn btn-sm btn-icon" aria-label="Project settings" title="Settings"><Settings2 size={15} /></button>}
+          {isAdmin && <button type="button" onClick={() => setModal('planner')} className="btn btn-sm btn-invert"><Wand2 size={14} /> AI Planner</button>}
+          {isAdmin && <button type="button" onClick={() => openCreate()} className="btn btn-sm btn-primary"><Plus size={15} /> New task</button>}
         </div>
       </div>
 
-        {/* AI Quick Task Creator Hook */}
-        <form onSubmit={handleAiSubmit} className="mb-6 relative max-w-2xl group">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <Zap size={18} className={`${aiPrompt ? 'text-indigo-500' : 'text-gray-400'} transition-colors`} />
-          </div>
-          <input
-            type="text"
-            value={aiPrompt}
-            onChange={(e) => setAiPrompt(e.target.value)}
-            placeholder="Type 'Build login page by Friday, assign to Raj' and press enter..."
-            className="w-full pl-11 pr-24 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm placeholder-gray-400 group-hover:border-indigo-200"
-            disabled={isAiLoading}
-          />
-          <div className="absolute inset-y-0 right-2 flex items-center">
-            <button 
-              type="submit" 
-              disabled={!aiPrompt.trim() || isAiLoading}
-              className="bg-indigo-600 text-white px-3 py-1.5 rounded-xl text-xs font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center gap-1"
-            >
-              {isAiLoading ? 'Creating...' : 'Create Magic'}
+      {/* Quick add */}
+      {isAdmin && (
+        <form onSubmit={submitQuick} className="relative mb-5 group">
+          <Zap size={17} className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${quick ? 'text-accent' : 'text-subtle'}`} />
+          <input ref={quickRef} value={quick} onChange={(e) => setQuick(e.target.value)} disabled={quickBusy} maxLength={500}
+            placeholder="Quick add: “Design pricing page by Friday @riya #design 3pts urgent”"
+            className="input !h-12 !pl-11 !pr-28 sm:!pr-36 !rounded-2xl !text-[0.92rem]" aria-label="Quick add a task" />
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+            <span className="hidden sm:inline kbd">Q</span>
+            <button type="submit" disabled={!quick.trim() || quickBusy} className="btn btn-primary btn-sm !mb-0">
+              {quickBusy ? <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <><CornerDownLeft size={13} /> Add</>}
             </button>
           </div>
         </form>
+      )}
 
-        {/* Live Project Pulse Widget */}
-        <ProjectPulse projectId={id} />
+      <ProjectPulse projectId={id} refreshKey={pulseKey} />
 
-        <div className="flex flex-col lg:flex-row gap-6 h-full min-h-0">
-          <div className="flex-1 flex flex-col min-h-0">
-            {/* Search & Filter Bar */}
-      <div className="flex flex-wrap items-center gap-3 mb-5">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search tasks..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-white text-sm"
-          />
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-2.5 mb-4">
+        <Segmented id="view" options={VIEWS} value={view} onChange={setView} />
+        <div className="relative flex-1 min-w-[180px] max-w-xs">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-subtle" />
+          <input ref={searchRef} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Filter tasks" className="input !py-2 !pl-9 !pr-9" aria-label="Filter tasks" />
+          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 kbd hidden sm:inline-block">/</span>
         </div>
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-all ${
-            filterPriority ? 'border-indigo-300 bg-indigo-50 text-indigo-600' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-          }`}
-        >
-          <Filter size={16} /> Filter {filterPriority && `(${filterPriority})`}
-        </button>
-        {filterPriority && (
-          <button onClick={() => setFilterPriority('')} className="text-xs text-gray-500 hover:text-red-500 transition-colors">Clear</button>
+        <Segmented id="owner" size="sm" value={owner} onChange={setOwner} options={[{ value: 'all', label: 'Everyone' }, { value: 'me', label: 'Mine' }, { value: 'none', label: 'Unassigned' }]} />
+        <Segmented id="prio" size="sm" value={priority} onChange={setPriority}
+          options={[{ value: '', label: 'Any' }, ...['High', 'Medium', 'Low'].map((p) => ({ value: p, label: p, icon: <PriorityBars priority={p} /> }))]} />
+        {allTags.length > 0 && (
+          <select value={tag} onChange={(e) => setTag(e.target.value)} className="input !w-auto !py-2 !text-xs" aria-label="Filter by tag">
+            <option value="">All tags</option>
+            {allTags.map((t) => <option key={t} value={t}>#{t}</option>)}
+          </select>
         )}
-
-        {showFilters && (
-          <div className="w-full flex gap-2 animate-fadeIn">
-            {['High', 'Medium', 'Low'].map(p => (
-              <button
-                key={p}
-                onClick={() => { setFilterPriority(filterPriority === p ? '' : p); setShowFilters(false); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${filterPriority === p ? 'ring-2 ring-indigo-500' : ''} ${priorityConfig[p].class}`}
-              >
-                {priorityConfig[p].icon} {p}
-              </button>
-            ))}
-          </div>
+        {filtersOn && (
+          <button type="button" onClick={() => { setSearch(''); setPriority(''); setOwner('all'); setTag(''); }} className="text-xs font-semibold text-accent-text flex items-center gap-1 hover:underline">
+            <X size={13} /> Clear
+          </button>
         )}
-
-        <div className="ml-auto text-xs text-gray-400 self-center">
-          {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''}
-        </div>
+        <div className="flex-1" />
+        <span className="text-xs text-subtle font-mono">{filtered.length}/{tasks.length}</span>
+        <button type="button" onClick={() => setActivityOpen((v) => !v)} className={`btn btn-sm ${activityOpen ? 'btn-primary' : ''}`} aria-pressed={activityOpen}><Activity size={14} /> Activity</button>
       </div>
 
-      {/* Kanban Board */}
-      <div className="flex-1 overflow-x-auto overflow-y-hidden custom-scrollbar pb-4">
-        <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex gap-5 h-full items-start min-w-max">
-            {columns.map(col => {
-              const columnTasks = filteredTasks.filter(t => t.status === col.key);
-              return (
-                <div key={col.key} className="w-80 bg-gray-100/50 rounded-2xl flex flex-col max-h-[calc(100vh-260px)] border border-gray-200">
-                  {/* Column header */}
-                  <div className="p-4 flex items-center justify-between border-b border-gray-200 bg-white/60 rounded-t-2xl">
-                    <h3 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
-                      <span className={`w-2.5 h-2.5 rounded-full ${col.color}`}></span>
-                      {col.label}
-                    </h3>
-                    <span className="bg-gray-200 text-gray-600 text-xs py-1 px-2.5 rounded-full font-medium">
-                      {columnTasks.length}
-                    </span>
-                  </div>
+      <div className="flex gap-5 items-start">
+        <div className="flex-1 min-w-0">
+          <AnimatePresence mode="wait">
+            <motion.div key={view} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.22 }}>
+              {view === 'board' && (
+                <KanbanBoard tasks={filtered} allTasks={tasks} wipLimits={project.wipLimits} focusTaskId={focus?.task?._id}
+                  onDragStart={() => { dragging.current = true; }} onDragEnd={onDragEnd} onOpen={openTask} onAdd={openCreate} canAdd={isAdmin} />
+              )}
+              {view === 'list' && <ListView tasks={filtered} allTasks={tasks} onOpen={openTask} onStatus={(t, s) => moveTask(t, s)} />}
+              {view === 'calendar' && <CalendarView tasks={filtered} onOpen={openTask} />}
+            </motion.div>
+          </AnimatePresence>
+        </div>
 
-                  <Droppable droppableId={col.key}>
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        className={`flex-1 overflow-y-auto custom-scrollbar p-3 space-y-3 transition-colors min-h-[100px] ${snapshot.isDraggingOver ? 'bg-indigo-50/40' : ''}`}
-                      >
-                        {columnTasks.length === 0 && !snapshot.isDraggingOver && (
-                          <div className="flex flex-col items-center justify-center py-8 text-gray-300">
-                            <div className="text-2xl mb-1">📋</div>
-                            <p className="text-xs">No tasks here</p>
-                          </div>
-                        )}
-                        {columnTasks.map((task, index) => {
-                          const dlStatus = getDeadlineStatus(task.deadline, task.status);
-                          return (
-                            <Draggable key={task._id} draggableId={task._id} index={index}>
-                              {(provided, snapshot) => (
-                                <div
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  {...provided.dragHandleProps}
-                                  onClick={() => setSelectedTask(task)}
-                                  className={`bg-white rounded-xl p-4 border shadow-sm transition-all duration-200 group cursor-pointer ${
-                                    snapshot.isDragging
-                                      ? 'shadow-xl ring-2 ring-indigo-400 rotate-1 scale-[1.03] border-indigo-300 z-50'
-                                      : 'border-gray-100 hover:shadow-md hover:border-indigo-100'
-                                  }`}
-                                >
-                                  {/* Priority + Delete */}
-                                  <div className="flex justify-between items-center mb-2">
-                                    <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md ${priorityConfig[task.priority || 'Medium'].class}`}>
-                                      {task.priority || 'Medium'}
-                                    </span>
-                                    {user?.role === 'Admin' && (
-                                      <button
-                                        onClick={(e) => { e.stopPropagation(); handleDeleteTask(task._id); }}
-                                        className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1 rounded-lg hover:bg-red-50"
-                                      >
-                                        <Trash2 size={14} />
-                                      </button>
-                                    )}
-                                  </div>
-
-                                  {/* Title */}
-                                  <h4 className="font-semibold text-gray-900 leading-snug text-sm mb-1">{task.title}</h4>
-                                  <p className="text-xs text-gray-500 line-clamp-2 mb-3 leading-relaxed">{task.description}</p>
-
-                                  {/* Footer */}
-                                  <div className="flex items-center justify-between pt-3 border-t border-gray-50">
-                                    <div className="flex items-center gap-2">
-                                      {task.assignedTo ? (
-                                        <div className="flex items-center gap-1.5" title={task.assignedTo.name}>
-                                          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 text-white flex items-center justify-center font-bold text-[10px]">
-                                            {task.assignedTo.name?.charAt(0)?.toUpperCase()}
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <div className="w-6 h-6 rounded-full bg-gray-100 border border-dashed border-gray-300" title="Unassigned"></div>
-                                      )}
-                                      
-                                      {/* Subtask Indicator */}
-                                      {task.subtasks && task.subtasks.length > 0 && (
-                                        <div className="flex items-center gap-1 text-[10px] font-medium text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded">
-                                          <CheckSquare size={10} />
-                                          {task.subtasks.filter(s => s.isCompleted).length}/{task.subtasks.length}
-                                        </div>
-                                      )}
-                                    </div>
-                                    <div className={`flex items-center gap-1 text-[11px] ${dlStatus.color}`}>
-                                      {dlStatus.label === 'Overdue' && <AlertTriangle size={12} />}
-                                      <Clock size={11} />
-                                      <span>
-                                        {new Date(task.deadline).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                      </span>
-                                      {dlStatus.label && dlStatus.label !== 'Done' && (
-                                        <span className="ml-0.5">· {dlStatus.label}</span>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                            </Draggable>
-                          );
-                        })}
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
+        <AnimatePresence>
+          {activityOpen && (
+            <motion.aside initial={{ opacity: 0, x: 40, width: 0 }} animate={{ opacity: 1, x: 0, width: 320 }} exit={{ opacity: 0, x: 40, width: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 32 }}
+              className="hidden lg:block flex-none overflow-hidden">
+              <div className="card w-[320px] p-4 max-h-[calc(100vh-230px)] overflow-y-auto scroll-thin">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold text-sm flex items-center gap-2"><Activity size={15} className="text-accent-text" /> Activity</h3>
+                  <button type="button" onClick={() => setActivityOpen(false)} className="btn btn-ghost btn-icon btn-sm" aria-label="Close activity"><X size={15} /></button>
                 </div>
-              );
-            })}
-            </div>
-          </DragDropContext>
-        </div>
+                <ActivityFeed items={activities} compact />
+              </div>
+            </motion.aside>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* Activity Sidebar */}
-      {isActivityOpen && (
-        <div className="w-full lg:w-80 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col min-h-0 lg:h-[calc(100vh-200px)]">
-          <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-            <h3 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
-              <Activity size={16} className="text-indigo-500" /> Activity Log
-            </h3>
-            <button onClick={() => setIsActivityOpen(false)} className="text-gray-400 hover:text-gray-600">
-              <X size={16} />
-            </button>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {activities.length === 0 ? (
-              <p className="text-xs text-gray-400 text-center py-4">No activity yet.</p>
-            ) : (
-              activities.map(act => (
-                <div key={act._id} className="flex gap-3 text-sm">
-                  <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
-                    {act.userId?.name?.charAt(0)?.toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="text-gray-800 leading-snug">
-                      <span className="font-semibold">{act.userId?.name}</span> {act.details.replace(act.userId?.name, '')}
-                    </p>
-                    <p className="text-[10px] text-gray-400 mt-0.5">
-                      {new Date(act.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-      </div>
+      {/* Activity on small screens */}
+      <AnimatePresence>
+        {activityOpen && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="lg:hidden card p-4 mt-4 overflow-hidden">
+            <h3 className="font-semibold text-sm mb-2">Activity</h3>
+            <ActivityFeed items={activities.slice(0, 20)} compact />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {isModalOpen && (
-        <CreateTaskModal
-          projectId={id}
-          members={project?.members || []}
-          onClose={() => setIsModalOpen(false)}
-          onSuccess={() => {
-            setIsModalOpen(false);
-            fetchData();
-          }}
-        />
-      )}
-
-      {selectedTask && (
-        <TaskDetailsModal
-          task={selectedTask}
-          userRole={user?.role}
-          onClose={() => setSelectedTask(null)}
-          onUpdate={(updatedTask) => {
-            setTasks(prev => prev.map(t => t._id === updatedTask._id ? updatedTask : t));
-            setSelectedTask(updatedTask);
-          }}
-        />
-      )}
-
-      {isGenerating && (
-        <AIGeneratorModal
-          projectId={id}
-          onClose={() => setIsGenerating(false)}
-          onSuccess={() => {
-            setIsGenerating(false);
-            fetchData();
-          }}
-        />
-      )}
-      {isPlaybackOpen && (
-        <GhostPlayback projectId={id} onClose={() => setIsPlaybackOpen(false)} />
-      )}
+      <AnimatePresence>
+        {selected && (
+          <TaskDetailsModal key={selected._id} task={selected} tasks={tasks} members={members} onClose={closeTask}
+            onChange={upsert} onDelete={(tid) => { setTasks((ts) => ts.filter((t) => t._id !== tid)); closeTask(); setPulseKey((k) => k + 1); }} />
+        )}
+        {modal === 'create' && (
+          <CreateTaskModal projectId={id} members={members} tasks={tasks} initialStatus={createStatus} onClose={() => setModal(null)}
+            onCreated={(t) => { upsert(t); setModal(null); }} />
+        )}
+        {modal === 'planner' && <AIPlannerModal projectId={id} onClose={() => setModal(null)} onCreated={() => { setModal(null); loadTasks(); setPulseKey((k) => k + 1); }} />}
+        {(modal === 'settings' || modal === 'share') && (
+          <ProjectSettingsModal project={project} initialTab={modal === 'share' ? 'sharing' : 'general'} onClose={() => setModal(null)}
+            onSaved={(p) => { setProject(p); setModal(null); }} onDeleted={() => navigate('/projects', { replace: true })} />
+        )}
+        {modal === 'standup' && <StandupModal projectId={id} projectName={project.name} onClose={() => setModal(null)} />}
+        {modal === 'playback' && <GhostPlayback projectId={id} onClose={() => setModal(null)} />}
+      </AnimatePresence>
     </div>
   );
 }
