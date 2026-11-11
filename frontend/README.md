@@ -3,8 +3,7 @@
 React 19 + Vite + Tailwind CSS 4. See the [main README](../README.md) for features and setup.
 
 ```bash
-cp .env.example .env   # point VITE_API_URL at your API
-npm install
+npm install            # no .env needed: /api is proxied to http://localhost:5000
 npm run dev            # http://localhost:3000
 npm run lint
 npm run build

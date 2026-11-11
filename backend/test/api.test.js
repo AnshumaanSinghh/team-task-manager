@@ -36,8 +36,9 @@ test('API end to end', { skip: !URI && 'set TEST_MONGO_URI to run' }, async (t) 
   };
   const inDays = (n) => new Date(Date.now() + n * 86400000).toISOString();
 
-  // Health works before any DB call
-  ok(await call('GET', '/health'));
+  // Health reports database and secret status
+  const health = ok(await call('GET', '/health'));
+  assert.deepEqual(health.checks, { api: 'ok', jwtSecret: 'set', database: 'connected' });
 
   // ---------- auth
   const admin = ok(await call('POST', '/auth/signup', null, { name: 'Aarav Admin', email: 'admin@test.dev', password: 'secret12', role: 'Admin' }), 201);
@@ -213,4 +214,16 @@ test('API end to end', { skip: !URI && 'set TEST_MONGO_URI to run' }, async (t) 
   assert.equal(ok(await call('GET', '/tasks', admin.token)).length, 0);
 
   assert.equal((await call('GET', '/nope', admin.token)).status, 404);
+
+  // Rate limiting only counts failures: many correct sign-ins from one IP (an office,
+  // a classroom) never lock anyone out, but repeated wrong passwords do.
+  for (let i = 0; i < 25; i++) {
+    assert.equal((await call('POST', '/auth/login', null, { email: 'mira@test.dev', password: 'secret12' })).status, 200);
+  }
+  let blockedAt = null;
+  for (let i = 0; i < 25 && blockedAt === null; i++) {
+    const r = await call('POST', '/auth/login', null, { email: 'mira@test.dev', password: 'nope' });
+    if (r.status === 429) blockedAt = i;
+  }
+  assert.ok(blockedAt !== null && blockedAt < 20, `wrong passwords get rate limited (blocked at ${blockedAt})`);
 });

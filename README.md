@@ -70,51 +70,39 @@ Every project, task, comment, activity, pulse, playback and standup endpoint che
 
 ## Getting started
 
-Prerequisites: Node.js 20 or newer and a MongoDB instance (local or Atlas).
+Prerequisites: Node.js 20 or newer and MongoDB. Locally the API uses `mongodb://127.0.0.1:27017/taskflow` when `MONGO_URI` is not set, so a running local MongoDB (for example `brew services start mongodb-community`) is all you need.
 
 ```bash
 git clone https://github.com/AnshumaanSinghh/team-task-manager.git
 cd team-task-manager
 npm install
 npm run install:all
-```
-
-Configure the API:
-
-```bash
-cp backend/.env.example backend/.env    # then set MONGO_URI and JWT_SECRET
-```
-
-Optionally load demo data (four users, two projects, blockers, comments, a decision and two weeks of activity):
-
-```bash
-npm run seed
-```
-
-Demo sign-ins after seeding (password `demo1234`): `admin@taskflow.demo` (Admin), `riya@taskflow.demo`, `kabir@taskflow.demo`, `zoya@taskflow.demo` (Members).
-
-Run both servers:
-
-```bash
+npm run seed      # optional demo data
 npm run dev
 ```
 
-- Frontend: http://localhost:3000 (set `VITE_API_URL=http://localhost:5000/api` in `frontend/.env`, see `frontend/.env.example`)
-- API: http://localhost:5000
+- App: http://localhost:3000 (the dev server proxies `/api` to the API, no frontend config needed)
+- API: http://localhost:5000, health check at http://localhost:5000/api/health
+
+Demo sign-ins after seeding (password `demo1234`): `admin@taskflow.demo` (Admin), `riya@taskflow.demo`, `kabir@taskflow.demo`, `zoya@taskflow.demo` (Members).
+
+To use MongoDB Atlas or a different database locally, copy `backend/.env.example` to `backend/.env` and set `MONGO_URI`.
 
 ### Environment variables (backend)
 
 | Variable | Required | Notes |
 |---|---|---|
-| `MONGO_URI` | Yes | MongoDB connection string |
-| `JWT_SECRET` | Yes in production | Long random string. The server refuses to start in production without it. |
+| `MONGO_URI` | In production | MongoDB connection string. Defaults to local MongoDB in development. |
+| `JWT_SECRET` | In production | Long random string (`openssl rand -hex 32`). Without it a production API answers every request with a clear 503. |
+| `NODE_ENV` | No | Set `production` on your host |
 | `PORT` | No | Default `5000` |
-| `NODE_ENV` | No | `production` hides stack traces |
 | `CORS_ORIGINS` | No | Comma-separated allowed origins. Default allows all. |
 | `GROQ_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY` | No | Enable AI refinement for Quick Add and the AI Planner |
 | `GROQ_MODEL`, `GEMINI_MODEL`, `OPENROUTER_MODEL` | No | Override the default model for each provider |
 
-Secrets belong in your host's environment settings (Railway, Vercel) or a local `.env`, never in the repository.
+The frontend needs no variables: it calls `/api` on its own origin. Set `VITE_API_URL` only if you want the browser to call an API on another domain directly.
+
+Secrets belong in your host's environment settings or a local `.env`, never in the repository.
 
 ## Scripts
 
@@ -168,11 +156,26 @@ team-task-manager/
 └── docs/screenshots/
 ```
 
-## Deployment
+## Deployment (Vercel + MongoDB Atlas)
 
-**API on Railway:** root directory `backend`, start command `node server.js`, and set the environment variables above.
+1. **Database.** In [MongoDB Atlas](https://cloud.mongodb.com) create a free M0 cluster. Under *Database Access* add a user; under *Network Access* allow `0.0.0.0/0` (serverless functions have no fixed IP). Copy the connection string from *Connect → Drivers* and add a database name, e.g. `...mongodb.net/taskflow?retryWrites=true&w=majority`.
+2. **API.** Vercel project with root directory `backend` (it uses `backend/vercel.json`). In *Settings → Environment Variables* add `MONGO_URI`, `JWT_SECRET` and `NODE_ENV=production`, then redeploy. Open `https://<api-domain>/api/health`: it should say `"database": "connected"` and `"jwtSecret": "set"`.
+3. **Frontend.** Vercel project with root directory `frontend`, framework preset Vite. `frontend/vercel.json` rewrites `/api/*` to the API domain, so update that URL if your API domain differs, and remove any old `VITE_API_URL` variable. Redeploy.
 
-**Frontend on Vercel:** root directory `frontend`, framework preset Vite, build `npm run build`, output `dist`, and set `VITE_API_URL=https://<your-api-host>/api`.
+Railway or Render work the same way for the API: root directory `backend`, start command `node server.js`, same variables.
+
+## Troubleshooting sign in / sign up
+
+The sign-in and sign-up pages check `/api/health` and show what is wrong. Common cases:
+
+| Message | Fix |
+|---|---|
+| *Cannot reach the TaskFlow server* | The API is not running or the frontend points at the wrong domain. Locally run `npm run dev`; on Vercel check the rewrite in `frontend/vercel.json`. |
+| *MongoDB host not found* | The Atlas cluster was deleted or paused, or `MONGO_URI` has a typo. Create or resume the cluster and update `MONGO_URI`. |
+| *Could not reach MongoDB in time* | Allow `0.0.0.0/0` in Atlas *Network Access*. |
+| *MongoDB rejected the username or password* | Fix the user or password in `MONGO_URI` (URL-encode special characters). |
+| *Set JWT_SECRET* | Add `JWT_SECRET` to the API environment and redeploy. |
+| *Too many attempts* | 20 failed sign-in or sign-up attempts from one network in 15 minutes. Wait, then try again. Successful sign-ins never count. |
 
 ## Author
 

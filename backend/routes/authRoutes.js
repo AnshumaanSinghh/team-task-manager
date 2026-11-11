@@ -4,7 +4,7 @@ const { protect } = require('../middleware/authMiddleware');
 const { rateLimit } = require('../lib/rateLimit');
 
 const router = express.Router();
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, skipSuccessful: true });
 
 router.post('/signup', authLimiter, registerUser);
 router.post('/login', authLimiter, loginUser);

@@ -1,8 +1,12 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://backend-production-bc0ea.up.railway.app/api';
+// Same-origin "/api" by default:
+// - `npm run dev` proxies it to the local API (see vite.config.js)
+// - on Vercel, vercel.json rewrites it to the deployed API
+// Set VITE_API_URL only to call an API on another origin directly.
+export const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '');
 
-const api = axios.create({ baseURL: API_URL, timeout: 20000 });
+const api = axios.create({ baseURL: API_BASE, timeout: 20000 });
 
 const readUser = () => {
   try {
@@ -30,7 +34,22 @@ api.interceptors.response.use(
   }
 );
 
-export const errorMessage = (error, fallback = 'Something went wrong') =>
-  error?.response?.data?.message || (error?.code === 'ECONNABORTED' ? 'The server took too long to respond' : fallback);
+const OFFLINE = 'Cannot reach the TaskFlow server. Check your connection, or that the API is running.';
+
+// Human-readable message for any API failure.
+export function errorMessage(error, fallback = 'Something went wrong') {
+  const res = error?.response;
+  if (res) {
+    const data = res.data;
+    if (data && typeof data === 'object' && typeof data.message === 'string' && data.message) return data.message;
+    if (res.status === 404) return 'The TaskFlow API was not found at this address. The API may not be deployed.';
+    // The API always answers errors with JSON; a bare 5xx comes from a proxy or host in front of it.
+    if (res.status >= 500) return OFFLINE;
+    return fallback;
+  }
+  if (error?.code === 'ECONNABORTED') return 'The server took too long to respond. Please try again.';
+  if (error?.request || error?.code === 'ERR_NETWORK') return OFFLINE;
+  return fallback;
+}
 
 export default api;

@@ -139,3 +139,34 @@ test('helpers: loose JSON, regex escaping and tag cleaning', () => {
   assert.ok(new RegExp(escapeRegex('a.*(b')).test('xa.*(b'));
   assert.deepEqual(cleanTags(['#Front End', 'front-end', 'API', '', 7]), ['front-end', 'api']);
 });
+
+test('database errors are explained without leaking the connection string', () => {
+  const { explain } = require('../config/db');
+  assert.match(explain(new Error('querySrv ENOTFOUND _mongodb._tcp.cluster0.abc.mongodb.net')), /host not found/);
+  assert.match(explain(new Error('bad auth : Authentication failed.')), /username or password/);
+  assert.match(explain(new Error('connect ECONNREFUSED 127.0.0.1:27017')), /Start MongoDB locally/);
+  assert.match(explain(new Error('Server selection timed out after 8000 ms')), /0\.0\.0\.0\/0/);
+  assert.doesNotMatch(explain(new Error('bad auth mongodb+srv://u:secret@x')), /secret/);
+});
+
+test('rate limiter: successful requests do not count when skipSuccessful is on', () => {
+  const { EventEmitter } = require('node:events');
+  const { rateLimit } = require('../lib/rateLimit');
+  const limiter = rateLimit({ windowMs: 60000, max: 2, skipSuccessful: true });
+  const run = (status) => {
+    const res = Object.assign(new EventEmitter(), {
+      statusCode: 200,
+      set() { return this; },
+      status(code) { this.statusCode = code; return this; },
+      json() { this.blocked = true; return this; }
+    });
+    let passed = false;
+    limiter({ ip: '1.2.3.4' }, res, () => { passed = true; });
+    if (passed) { res.statusCode = status; res.emit('finish'); }
+    return passed;
+  };
+  for (let i = 0; i < 10; i++) assert.equal(run(200), true, 'successes never block');
+  assert.equal(run(401), true);
+  assert.equal(run(401), true);
+  assert.equal(run(401), false, 'third failure is blocked');
+});

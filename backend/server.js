@@ -6,10 +6,12 @@ const { errorHandler, notFound } = require('./middleware/errorMiddleware');
 
 dotenv.config({ quiet: true });
 
-if (!process.env.JWT_SECRET) {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('JWT_SECRET must be set in production');
-  }
+const VERSION = '3.1.0';
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Development gets a throwaway secret so `npm run dev` just works. Production
+// never does: requests get a clear 503 until JWT_SECRET is configured.
+if (!process.env.JWT_SECRET && !isProduction) {
   console.warn('[taskflow] JWT_SECRET is not set; using an insecure development secret.');
   process.env.JWT_SECRET = 'taskflow-dev-only-secret';
 }
@@ -37,12 +39,33 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '200kb' }));
 app.use(express.urlencoded({ extended: true, limit: '200kb' }));
 
-// Health checks do not need the database.
 app.get('/', (req, res) => {
-  res.json({ status: 'ok', message: 'TaskFlow API is running', timestamp: new Date().toISOString(), version: '3.0.0' });
+  res.json({ status: 'ok', message: 'TaskFlow API is running', timestamp: new Date().toISOString(), version: VERSION });
 });
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), uptime: process.uptime() });
+
+// Deployment check: is the database reachable and is the JWT secret configured?
+// Reports booleans and reasons only, never secrets.
+app.get('/api/health', async (req, res) => {
+  const checks = { api: 'ok', jwtSecret: process.env.JWT_SECRET ? 'set' : 'missing', database: 'connected' };
+  try {
+    await connectDB();
+  } catch (err) {
+    checks.database = 'error';
+    checks.databaseError = err.reason || 'Could not connect to MongoDB.';
+  }
+  const healthy = checks.database === 'connected' && checks.jwtSecret === 'set';
+  res.status(healthy ? 200 : 503).json({
+    status: healthy ? 'ok' : 'degraded',
+    checks,
+    version: VERSION,
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
+app.use('/api', (req, res, next) => {
+  if (process.env.JWT_SECRET) return next();
+  return res.status(503).json({ message: 'The server is not configured yet: set JWT_SECRET in the API environment variables.' });
 });
 
 // Lazy database connection (cached across serverless invocations).
@@ -51,8 +74,7 @@ app.use(async (req, res, next) => {
     await connectDB();
     next();
   } catch (err) {
-    console.error('Database connection failed:', err.message);
-    res.status(503).json({ message: 'Database unavailable. Please try again shortly.' });
+    res.status(503).json({ message: `Database unavailable. ${err.reason || 'Please try again shortly.'}` });
   }
 });
 

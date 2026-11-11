@@ -51,5 +51,5 @@ and a circular theme reveal (View Transitions API). Respects reduced motion.
 5. LIVE URLS
 --------------------------------------------------
 Frontend: https://frontend-lake-tau-31.vercel.app
-Backend API: https://backend-production-bc0ea.up.railway.app
+Backend API: https://backend-mu-two-25.vercel.app (the frontend reaches it through its /api rewrite)
 GitHub Repo: https://github.com/AnshumaanSinghh/team-task-manager

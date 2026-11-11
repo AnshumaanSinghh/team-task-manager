@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Check, Timer, Users, Lock, Sparkles } from 'lucide-react';
 import { Logo } from './ui/Bits';
+import ServerStatus from './ServerStatus';
 import { useTheme } from '../context/ThemeContext';
 import { Moon, Sun } from 'lucide-react';
 
@@ -86,6 +87,7 @@ export default function AuthShell({ title, subtitle, children, footer }) {
             style={{ transformPerspective: 1000 }} className="w-full max-w-md">
             <h2 className="text-3xl font-bold">{title}</h2>
             <p className="text-muted mt-2 mb-8">{subtitle}</p>
+            <ServerStatus />
             {children}
             <div className="mt-8 text-center text-sm text-muted">{footer}</div>
           </motion.div>

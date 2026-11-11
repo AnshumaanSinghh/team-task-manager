@@ -19,6 +19,11 @@ export default defineConfig([
     },
   },
   {
+    // Build config runs in Node, not the browser.
+    files: ['vite.config.js', 'eslint.config.js'],
+    languageOptions: { globals: globals.node },
+  },
+  {
     // Context modules export a provider plus its hook; that is fine for fast refresh.
     files: ['src/context/**/*.jsx'],
     rules: { 'react-refresh/only-export-components': 'off' },
