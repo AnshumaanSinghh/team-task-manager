@@ -29,19 +29,25 @@ const userSchema = new mongoose.Schema({
   avatar: {
     type: String,
     default: ''
+  },
+  // Live Focus Mode session. Empty when the user is not focusing.
+  focus: {
+    task: { type: mongoose.Schema.Types.ObjectId, ref: 'Task', default: null },
+    project: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', default: null },
+    startedAt: { type: Date, default: null },
+    endsAt: { type: Date, default: null }
   }
 }, { timestamps: true });
 
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
-    return next();
-  }
+// Mongoose 9 does not pass `next` to async hooks: return early instead of calling it.
+userSchema.pre('save', async function () {
+  if (!this.isModified('password')) return;
   const salt = await bcrypt.genSalt(12);
   this.password = await bcrypt.hash(this.password, salt);
 });
 
 userSchema.methods.matchPassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+  return bcrypt.compare(enteredPassword, this.password);
 };
 
 module.exports = mongoose.model('User', userSchema);

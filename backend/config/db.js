@@ -22,10 +22,10 @@ const connectDB = async () => {
     if (!cached.promise) {
       cached.promise = mongoose.connect(uri, {
         bufferCommands: false,
+        serverSelectionTimeoutMS: 8000,
       });
     }
     cached.conn = await cached.promise;
-    console.log(`MongoDB Connected: ${cached.conn.connection.host}`);
     return cached.conn;
   } catch (error) {
     cached.promise = null;

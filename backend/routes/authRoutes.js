@@ -1,10 +1,14 @@
 const express = require('express');
-const router = express.Router();
-const { registerUser, loginUser, getUsers } = require('../controllers/authController');
+const { registerUser, loginUser, getMe, getUsers } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
+const { rateLimit } = require('../lib/rateLimit');
 
-router.post('/signup', registerUser);
-router.post('/login', loginUser);
+const router = express.Router();
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
+
+router.post('/signup', authLimiter, registerUser);
+router.post('/login', authLimiter, loginUser);
+router.get('/me', protect, getMe);
 router.get('/users', protect, getUsers);
 
 module.exports = router;

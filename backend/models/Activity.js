@@ -1,5 +1,11 @@
 const mongoose = require('mongoose');
 
+const ACTIONS = [
+  'created_task', 'updated_task', 'deleted_task', 'status_change',
+  'created_project', 'updated_project', 'added_member', 'removed_member',
+  'commented', 'focus_session', 'kudos'
+];
+
 const activitySchema = new mongoose.Schema({
   projectId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -18,7 +24,7 @@ const activitySchema = new mongoose.Schema({
   action: {
     type: String,
     required: true,
-    enum: ['created_task', 'updated_task', 'deleted_task', 'status_change', 'created_project', 'added_member']
+    enum: ACTIONS
   },
   details: {
     type: String,
@@ -26,8 +32,14 @@ const activitySchema = new mongoose.Schema({
   },
   meta: {
     from: String,
-    to: String
+    to: String,
+    minutes: Number,
+    fields: [String]
   }
 }, { timestamps: true });
 
+activitySchema.index({ projectId: 1, createdAt: -1 });
+activitySchema.index({ userId: 1, action: 1, createdAt: -1 });
+
 module.exports = mongoose.model('Activity', activitySchema);
+module.exports.ACTIONS = ACTIONS;
