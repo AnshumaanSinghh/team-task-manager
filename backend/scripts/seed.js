@@ -8,6 +8,7 @@ const Project = require('../models/Project');
 const Task = require('../models/Task');
 const Activity = require('../models/Activity');
 const Comment = require('../models/Comment');
+const { configuredUri } = require('../config/db');
 
 const DAY = 86400000;
 const PASSWORD = 'demo1234';
@@ -17,11 +18,12 @@ async function main() {
     console.error('Refusing to seed a production database. Pass --yes if you really mean it.');
     process.exit(1);
   }
-  if (!process.env.MONGO_URI) {
+  const uri = configuredUri();
+  if (!uri) {
     console.error('Set MONGO_URI first (see backend/.env.example).');
     process.exit(1);
   }
-  await mongoose.connect(process.env.MONGO_URI);
+  await mongoose.connect(uri);
 
   if (await User.exists({ email: 'admin@taskflow.demo' })) {
     console.log('Demo data already present. Sign in as admin@taskflow.demo / demo1234');

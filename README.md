@@ -92,7 +92,7 @@ To use MongoDB Atlas or a different database locally, copy `backend/.env.example
 
 | Variable | Required | Notes |
 |---|---|---|
-| `MONGO_URI` | In production | MongoDB connection string. Defaults to local MongoDB in development. |
+| `MONGO_URI` | In production | MongoDB connection string. `MONGODB_URI` (set by the Vercel Marketplace Atlas integration) also works. Defaults to local MongoDB in development. |
 | `JWT_SECRET` | In production | Long random string (`openssl rand -hex 32`). Without it a production API answers every request with a clear 503. |
 | `NODE_ENV` | No | Set `production` on your host |
 | `PORT` | No | Default `5000` |
@@ -158,9 +158,20 @@ team-task-manager/
 
 ## Deployment (Vercel + MongoDB Atlas)
 
-1. **Database.** In [MongoDB Atlas](https://cloud.mongodb.com) create a free M0 cluster. Under *Database Access* add a user; under *Network Access* allow `0.0.0.0/0` (serverless functions have no fixed IP). Copy the connection string from *Connect → Drivers* and add a database name, e.g. `...mongodb.net/taskflow?retryWrites=true&w=majority`.
-2. **API.** Vercel project with root directory `backend` (it uses `backend/vercel.json`). In *Settings → Environment Variables* add `MONGO_URI`, `JWT_SECRET` and `NODE_ENV=production`, then redeploy. Open `https://<api-domain>/api/health`: it should say `"database": "connected"` and `"jwtSecret": "set"`.
-3. **Frontend.** Vercel project with root directory `frontend`, framework preset Vite. `frontend/vercel.json` rewrites `/api/*` to the API domain, so update that URL if your API domain differs, and remove any old `VITE_API_URL` variable. Redeploy.
+Deploy as two Vercel projects from this repo: the API first, because the frontend needs its domain.
+
+1. **API project.** *Add New → Project*, import this repo, set the root directory to `backend` (it uses `backend/vercel.json`). Add the environment variables `JWT_SECRET` (output of `openssl rand -hex 32`) and `NODE_ENV=production`, then deploy.
+2. **Database.** Either:
+   - **From Vercel:** in the API project open *Storage → Create Database → MongoDB Atlas*, choose the free tier and connect it to the project. It adds `MONGODB_URI`, which the API reads when `MONGO_URI` is not set. Redeploy the API so it picks up the variable.
+   - **From Atlas directly:** at [cloud.mongodb.com](https://cloud.mongodb.com) create a free M0 cluster. Under *Database Access* add a user; under *Network Access* allow `0.0.0.0/0` (serverless functions have no fixed IP). Copy the connection string from *Connect → Drivers*, add a database name (`...mongodb.net/taskflow?retryWrites=true&w=majority`), save it as `MONGO_URI` in the API project and redeploy.
+
+   Open `https://<api-domain>/api/health`: it should say `"database": "connected"` and `"jwtSecret": "set"`.
+3. **Frontend project.** Import the repo again, root directory `frontend`, framework preset Vite. Point it at the API in one of two ways:
+   - set `VITE_API_URL=https://<api-domain>/api` in the frontend project's environment variables before deploying (no code change; the API allows any origin unless `CORS_ORIGINS` is set), or
+   - change the domain in the `/api/*` rewrite in `frontend/vercel.json` to your API domain and push. This keeps API calls same-origin.
+
+   If you change `VITE_API_URL` later, redeploy the frontend: Vite bakes it in at build time.
+4. **Demo data (optional).** `NODE_ENV=production MONGO_URI="<connection string>" npm run seed --prefix backend -- --yes` adds a demo team, with members such as `riya@taskflow.demo` / `demo1234`.
 
 Railway or Render work the same way for the API: root directory `backend`, start command `node server.js`, same variables.
 
@@ -170,8 +181,8 @@ The sign-in and sign-up pages check `/api/health` and show what is wrong. Common
 
 | Message | Fix |
 |---|---|
-| *Cannot reach the TaskFlow server* | The API is not running or the frontend points at the wrong domain. Locally run `npm run dev`; on Vercel check the rewrite in `frontend/vercel.json`. |
-| *MongoDB host not found* | The Atlas cluster was deleted or paused, or `MONGO_URI` has a typo. Create or resume the cluster and update `MONGO_URI`. |
+| *Cannot reach the TaskFlow server* | The API is not running or the frontend points at the wrong domain. Locally run `npm run dev`; on Vercel check the rewrite in `frontend/vercel.json`, or `VITE_API_URL` if you set it. |
+| *MongoDB host not found* | The Atlas cluster was deleted or paused, or `MONGO_URI` / `MONGODB_URI` has a typo. Create or resume the cluster and update the variable. |
 | *Could not reach MongoDB in time* | Allow `0.0.0.0/0` in Atlas *Network Access*. |
 | *MongoDB rejected the username or password* | Fix the user or password in `MONGO_URI` (URL-encode special characters). |
 | *Set JWT_SECRET* | Add `JWT_SECRET` to the API environment and redeploy. |

@@ -14,10 +14,16 @@ class DatabaseError extends Error {
   }
 }
 
-// MONGO_URI wins. In development without it, fall back to a local MongoDB so
+// The connection string comes from MONGO_URI, or from MONGODB_URI, which the
+// MongoDB Atlas integration on the Vercel Marketplace sets automatically.
+function configuredUri() {
+  return (process.env.MONGO_URI || process.env.MONGODB_URI || '').trim();
+}
+
+// In development without a connection string, fall back to a local MongoDB so
 // `npm run dev` works out of the box. In production it must be set explicitly.
 function resolveUri() {
-  const uri = (process.env.MONGO_URI || '').trim();
+  const uri = configuredUri();
   if (uri && !uri.includes('<') && !uri.includes('user:pass@')) return uri;
   if (process.env.NODE_ENV === 'production') return null;
   return LOCAL_URI;
@@ -49,7 +55,7 @@ const connectDB = async () => {
 
   const uri = resolveUri();
   if (!uri) throw new DatabaseError('MONGO_URI is not set in the API environment variables.');
-  if (!process.env.MONGO_URI && !cached.warned) {
+  if (!configuredUri() && !cached.warned) {
     cached.warned = true;
     console.warn(`[taskflow] MONGO_URI is not set; using local MongoDB at ${LOCAL_URI}`);
   }
@@ -73,4 +79,5 @@ const connectDB = async () => {
 
 module.exports = connectDB;
 module.exports.explain = explain;
+module.exports.configuredUri = configuredUri;
 module.exports.DatabaseError = DatabaseError;
