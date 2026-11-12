@@ -4,7 +4,7 @@ A full-stack team task manager for small teams that want more than a to-do list:
 
 Black, green and white UI with 3D press buttons, tilt cards, page transitions and a circular theme reveal. Dark and light themes.
 
-**Live app:** [frontend-lake-tau-31.vercel.app](https://frontend-lake-tau-31.vercel.app)
+**Live app:** [taskflow-app-five-inky.vercel.app](https://taskflow-app-five-inky.vercel.app) · demo login `riya@taskflow.demo` / `demo1234`
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
